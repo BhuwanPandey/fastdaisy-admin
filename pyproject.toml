@@ -1,0 +1,15 @@
+[project]
+name = "fastdaisy-admin"
+version = "0.0.7"
+description = "Admin for FastAPI and Starlette"
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["sqlalchemy", "fastapi", "starlette", "admin","daisyui"]
+authors = [
+    { name = "Bhuwan Pandey", email = "bhuwan.pandu12345@gmail.com" },
+]
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
