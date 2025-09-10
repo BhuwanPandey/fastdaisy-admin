@@ -1,0 +1,56 @@
+{% extends "fastdaisy_admin/layout.html" %}
+{% from 'fastdaisy_admin/_macros.html' import render_form_fields %}
+
+{% block breadcrumbs %}
+        <div class="flex items-center max-md:p-3 p-5 pb-0 flex-wrap justify-between">
+        <div class="text-sm max-md:hidden breadcrumbs">
+        <ul>
+                <li><a href="{{ url_for('admin:index') }}" class="link link-hover">Dashboard</a></li>
+                <li><a href="{{ url_for('admin:list',identity=identity) }}"class="link link-hover">{{model_view.name}}</a></li>
+                <li>{{ obj|string | truncate(40) }}</li>
+            </ul>
+        </div>
+        </div>
+{% endblock %}
+
+
+{% block container %}
+    <div class="card w-full bg-base-100 shadow-xl my-6 p-6">
+        <p>Are you sure you want to delete the {{ model_view.name }} '{{ obj|string }}'? All of the following related items will be deleted:</p>
+            <h2>Summary</h2>
+            <ul>
+                {% for model_name, object_count in model_count %}
+                <li>{{model_name}}: {{ object_count }}</li>
+                {% endfor %}
+            </ul>
+            <h2 class="text-xl font-semibold">Objects</h2>
+            <ul class="list-disc list-inside ml-4">
+                
+                {% for model_name,objs in to_delete %}
+                    <li>
+                        <span>{{model_name[:-1]}}</span>
+                        {% for obj in objs %}
+                            <div class="ml-4">
+                                {% if admin.has_modelview(model_name[:-1],obj) %}
+                                    <a href="{{ model_view._build_url_for('admin:edit', request, obj) }}">{{obj}}</a>
+                                {% else %}
+                                    <span>{{obj}}</span>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </li>
+                {% endfor %}
+            </ul>
+            <form method="post" class="mt-4">
+                <div class="flex flex-col space-y-2">
+                    <input type="hidden" name="post" value="yes">
+                    <div class="flex gap-4">
+                        <button class="btn btn-error" type="submit">Yes, I’m sure</button>
+                    <a href="#" class="btn btn-secondary cancel-link">No, take me back</a>
+                    </div>
+                </div>
+            </form>
+
+    </div>
+
+{% endblock %}

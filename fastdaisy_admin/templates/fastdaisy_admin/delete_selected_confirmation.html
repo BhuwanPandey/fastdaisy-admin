@@ -1,0 +1,57 @@
+{% extends "fastdaisy_admin/layout.html" %}
+{% from 'fastdaisy_admin/_macros.html' import render_form_fields %}
+
+{% block breadcrumbs %}
+        <div class="flex items-center max-md:p-3 p-5 pb-0 flex-wrap justify-between">
+        <div class="text-sm max-md:hidden breadcrumbs">
+        <ul>
+                <li><a href="{{ url_for('admin:index') }}" class="link link-hover">Dashboard</a></li>
+                <li><a href="{{ url_for('admin:list',identity=model_view.identity) }}"class="link link-hover">{{model_view.name}}</a></li>
+                <li>Delete multiple objects</li>
+            </ul>
+        </div>
+        </div>
+{% endblock %}
+
+{% block container %}
+    <div class="card bg-base-100 shadow-md lg:p-6 p-3">
+            <p class="font-semibold">Are you sure you want to delete the selected {{ model_view.identity }}? All of the following objects and their related items will be deleted:</p>
+
+            <h2>Summary</h2>
+            <ul>
+                {% for name, object_count in model_count %}
+                <li>{{ name }}: {{ object_count }}</li>
+                {% endfor %}
+            </ul>
+            <h2 class="text-xl font-semibold">Objects</h2>
+            <ul class="list-disc list-inside ml-4">
+                {% for model_name,objs in to_delete %}
+                    <li>
+                        <span>{{model_name[:-1]}}</span>
+                        {% for obj in objs %}
+                            <div class="ml-4">
+                                {% if admin.has_modelview(model_name[:-1],obj) %}
+                                    <a href="{{ model_view._build_url_for('admin:edit', request, obj) }}">{{obj}}</a>
+                                {% else %}
+                                    <span>{{obj}}</span>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </li>
+                {% endfor %}
+            </ul>
+            <form method="post" class="mt-4">
+                <div class="flex flex-col space-y-2">
+                    {% for obj in models %}
+                        <input type="hidden" name="_selected_action" value="{{get_pk(obj,model_view)}}">
+                    {% endfor %}
+                    <input type="hidden" name="action" value="delete_selected">
+                    <input type="hidden" name="post" value="yes">
+                    <div class="flex gap-4">
+                        <input type="submit" class="btn btn-error" value="Yes, I’m sure">
+                        <a href="#" class="btn btn-outline cancel-link">No, take me back</a>
+                    </div>
+                </div>
+            </form>
+    </div>
+{% endblock %}

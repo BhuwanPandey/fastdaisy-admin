@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+
+<link rel="stylesheet" href="{{ url_for('admin:statics', path='css/fontawesome.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('admin:statics', path='css/flatpickr.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('admin:statics', path='css/styles.css') }}">
+<link rel="stylesheet" href="{{ url_for('admin:statics', path='css/extra_styles.css') }}">
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.css" rel="stylesheet">
+
+
+{% if admin.favicon_url %}
+    <link rel="icon" href="{{ admin.favicon_url }}">
+{% endif %}
+{% block head %}
+{% endblock %}
+
+
+<body>
+{% block body %}
+{% endblock %}
+
+
+{% block message %}
+{% endblock message %}
+
+
+<script type="text/javascript" src="{{ url_for('admin:statics', path='js/jquery.min.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('admin:statics', path='js/flatpickr.min.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('admin:statics', path='js/main.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('admin:statics', path='js/theme-change.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
+{% block tail %}
+{% endblock %}
+</body>
+
+</html>
+

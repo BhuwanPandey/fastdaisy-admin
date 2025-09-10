@@ -1,0 +1,11 @@
+@import "tailwindcss";
+@source inline("alert-{info,success,warning,error}");
+@plugin "daisyui" {
+  themes: light --default, dark --prefersdark, aqua,dracula,lemonade;
+}
+:root,
+[data-theme] {
+  background-color: var(--root-bg, var(--color-base-200));
+  color: var(--color-base-content);
+}
+

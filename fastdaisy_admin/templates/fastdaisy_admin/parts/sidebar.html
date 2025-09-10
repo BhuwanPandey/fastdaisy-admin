@@ -1,0 +1,71 @@
+<div class="drawer-side">
+      <label
+        for="menu-toggle"
+        aria-label="close sidebar"
+        class="drawer-overlay"
+      ></label>
+
+    <ul class="menu bg-base-100 text-base-content min-h-full !w-60 p-2">
+    <div class=" logo flex flex-col justify-center items-center w-full py-3">
+      <a href="{{ url_for('admin:index') }}">
+        <div class="w-full">
+          {% if admin.logo_url %}
+              <img loading="lazy" class="max-h-20 p-2 m-auto max-w-32" src="{{ admin.logo_url }}">
+          {% else %}
+              {{ admin.title }}
+          {% endif %}
+        </div>
+      </a>
+    </div>
+        <li>
+            <a href="{{ url_for('admin:index') }}">
+                <i class="fa fa-th"></i>
+                Dashboard
+            </a>
+        </li>
+
+{% for divider,views in admin._menu.divider.items() %}
+{% if divider %}
+  <div class="divider text-base-content/40 menu-title divider-start capitalize">{{divider}}</div>
+{% else %}
+  <div class="divider text-base-content/40 menu-title divider-start"></div>
+{% endif %}
+
+{% for view in views %}
+    {% if view.type_ == "View" %}
+        <ul>
+        <li>
+          
+          <a href="{{ view.url(request) }}" class="{% if view.is_active(request) %}menu-active{% endif %}">
+            <i class="{{ view.icon }}"></i>
+          {{view.display_name}}
+          </a>
+        </li>
+        </ul>
+    {% else %}
+
+    <li class="mb-2">
+      <details {% if view.is_active(request) %}open{% endif %}>
+        <summary class="capitalize">
+          <i class="{{ view.icon }}"></i>
+          {{view.display_name}}
+        </summary>
+        <ul>
+        {% for child in view.children %}
+            <li>
+              <a href="{{ child.url(request) }}" class="{% if child.is_active(request) %}menu-active{% endif %}">
+                <i class="{{ child.icon }}"></i>
+                  {{ child.display_name }}
+              </a>
+            </li>
+        {% endfor%}
+        </ul>
+      </details>
+    </li>
+
+  {%endif %}
+  {% endfor %}
+  {% endfor %}
+</ul>
+</div>
+

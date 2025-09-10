@@ -1,0 +1,45 @@
+<div class="inline-flex items-center lg:ms-3 w-full sm:w-auto">
+    <span class="me-1 font-bold text-sm hidden sm:block">Action:</span>
+    <div id="id_action_form_container" class="w-full">
+        <label  class="sr-only">Action:</label>
+        <select name="action" class="select select-sm w-full">
+            <option value="" selected="">---------</option>
+
+            <!-- TODO: setting width -->
+            <!-- {% if model_view.can_delete %}
+                <option value="delete_selected">Delete selected {{model_view.name_plural}}</option>
+            {% endif %}
+            {% for title, func in model_view._custom_actions_in_list.items() %}
+                    <option value="{{func.name}}">{{title}}</option>
+            {% endfor %} -->
+
+            {% for name,values in model_view.get_actions %}
+                <option value="{{name}}">{{values.0}}</option>
+            {% endfor %}
+        </select>
+    </div>
+        <button id="id_changelist_action_button" type="submit" class="button btn-sm btn btn-dark mx-1"
+                title="Run the selected action"
+                name="btn" value="go">Go</button>
+    </div>
+
+<script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const actionSelect = document.querySelector('#id_action_form_container select');
+            const buttonEl = document.querySelector('#id_changelist_action_button');
+
+            function check_select_state(element) {
+                return element && element.value.trim();
+            }
+
+            if (buttonEl) {
+                buttonEl.disabled = !check_select_state(actionSelect);
+            }
+
+            actionSelect?.addEventListener('change', function () {
+                if (buttonEl) {
+                    buttonEl.disabled = !check_select_state(actionSelect);
+                }
+            });
+        });
+</script>

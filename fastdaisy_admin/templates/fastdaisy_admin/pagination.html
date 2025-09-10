@@ -1,0 +1,44 @@
+<div class="mt-4">
+ <div class="paginator flex flex-wrap max-md:justify-center gap-2 justify-between p-4">
+     <!-- Left section: Empty or could be used for a "Previous" button if desired -->
+    <div class="">
+    {% if pagination.has_previous %}
+        <a href="{{ pagination.previous_page.url }}"
+           class="btn btn-sm btn-outline">Previous</a>
+    {% endif %}
+    {% if pagination.has_next %}
+        <a href="{{ pagination.next_page.url }}"
+           class="btn btn-sm btn-outline">Next</a>
+    {% endif %}
+</div>
+
+<!-- Center section: Pagination -->
+<div class="join">
+    {% if pagination.page_controls|length > 1 %}
+        {% for page_control in pagination.page_controls %}
+                {% if page_control.number == pagination.page %}
+                    <button class="join-item btn-sm btn btn-primary btn-active">{{ page_control.number }}</button>
+                
+                {% elif page_control.has_ellipsis %}
+                    <a href="#" class="join-item btn btn-sm">...</a>
+                {% else %}
+                    <a href="{{ page_control.url }}" class="join-item btn btn-sm">{{ page_control.number }}</a>
+                {% endif %}
+        {% endfor %}
+    {% endif %}
+</div>
+
+<div class="text-end">
+    <button class="btn btn-sm quiet ml-3 text-sm">
+            {{pagination.count}}
+            {% if pagination.count <= 1 %}{{ model_view.name|lower }}{% else %}{{ model_view.name_plural|lower }}{% endif %}
+            {% if pagination.count != pagination.total %}
+                <span>
+                    {{pagination.total}} total
+                </span>
+            {% endif %}
+    </button>
+</div>
+
+</div>
+</div>

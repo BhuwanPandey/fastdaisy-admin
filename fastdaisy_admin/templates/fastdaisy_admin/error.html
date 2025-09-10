@@ -1,0 +1,11 @@
+{% extends "fastdaisy_admin/layout.html" %}
+{% block body %}
+<div class="hero min-h-screen bg-base-100">
+  <div class="hero-content text-center">
+    <div class="max-w-md">
+      <h1 class="text-4xl font-bold text-error">{{ status_code }}</h1>
+      <p class="py-6 text-xl text-base-content">{{ message }}</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

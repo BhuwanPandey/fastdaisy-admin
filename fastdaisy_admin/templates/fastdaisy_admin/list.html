@@ -1,0 +1,142 @@
+{% extends "fastdaisy_admin/layout.html" %}
+
+{% block breadcrumbs %}
+        <div class="flex items-center max-md:p-3 p-5 pb-0 flex-wrap justify-between">
+        <div class="text-sm max-md:hidden breadcrumbs">
+        <ul>
+                <li><a href="{{ url_for('admin:index') }}" class="link link-hover">Dashboard</a></li>
+                <li><a href="{{ url_for('admin:list',identity=identity) }}"class="link link-hover">{{model_view.name_plural}}</a></li>
+            </ul>
+        </div>
+        </div>
+{% endblock %}
+
+
+{% block container %}
+
+<div class="drawer drawer-end">
+  <input id="filter-drawer" type="checkbox" class="drawer-toggle" />
+  <div class="drawer-content">
+    <!-- Page content here -->
+    <div class="overflow-hidden mt-3 w-full h-full flex">
+    <div class="card bg-base-100 w-full card-bordered flex-col flex-1 ">
+
+      <div class="hidden" id="hidden-search-form">
+      <form method="get">
+          <!-- search bar -->
+        {% if model_view.column_searchable_list %}
+          {% include 'fastdaisy_admin/parts/search.html' %}
+        {% endif %}
+      </form>
+      </div>
+
+      <form id="list-form" method="post">
+
+      <div class="flex flex-wrap gap-2 flex-row items-center justify-between px-3 pt-3">
+        <!-- search bar -->
+        {% if model_view.column_searchable_list %}
+          {% include 'fastdaisy_admin/parts/search.html' %}
+        {% endif %}
+        <!-- Action -->
+        {% if not model_view.only_view %}
+            {% include 'fastdaisy_admin/actions.html' %}
+        {% endif %}
+      
+        <div class="object-tools inline-flex ms-auto flex-wrap max-md:justify-center gap-2 justify-between p-4 pe-1">
+        
+          <!-- export button -->
+          {% if model_view.can_export %}
+          <div class="dropdown dropdown-bottom">
+            {% if model_view.export_types | length > 1 %}
+            <div tabindex="0" role="button" class="btn btn-sm btn-primary text-base-300">
+              <span class="flex">Export <i class="fa fa-sort-desc !pt-[1px] !pl-[6px]" aria-hidden="true"></i></span>
+            </div>
+            <ul tabindex="0" id="dropdowncontent" class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm">
+              {% for export_type in model_view.export_types %}
+                <li><a onclick="document.activeElement.blur()"
+                        href="{{ url_for('admin:export', identity=model_view.identity, export_type=export_type) }}">{{
+                        export_type | upper }}
+                </a></li>
+              {% endfor %}
+              
+            </ul>
+            {% elif model_view.export_types | length == 1 %}
+                  <a href="{{ url_for('admin:export', identity=model_view.identity, export_type=model_view.export_types[0]) }}"
+                    class="btn btn-sm btn-primary text-base-300">
+                    Export
+                  </a>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          <!-- Create button -->
+        {% if not model_view.only_view and model_view.can_create %}
+        <a href="{{ url_for('admin:create', identity=model_view.identity) }}" class="btn btn-sm btn-primary text-base-300">
+            <i class="fa fa-plus text-[15px]" aria-hidden="true"></i> 
+            <span class="flex-3">Add {{model_view.name}}</span>
+        </a>
+        {% endif %}
+
+        <!-- Filter tag display -->
+        {% if model_view.column_filters %}
+        <div class="indicator">
+          <label for="filter-drawer" class="btn btn-sm btn-primary drawer-button text-base-300"><i class="fa fa-filter"></i></label>
+        </div>
+        {% endif %}
+
+        </div>
+      </div>
+
+      <div class="card-body px-3 py-1 w-full">
+        <div class="overflow-auto max-h-[65vh]">
+          {% include 'fastdaisy_admin/records.html' %}
+        </div>
+        {% include 'fastdaisy_admin/pagination.html' %}
+      </div>
+      </form>
+
+    </div>
+</div>
+  </div>
+
+
+  <!-- Filter Section -->
+{% if model_view.get_filters() %}
+  <div class="drawer-side" id="filter-sidebar">
+    <label for="filter-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+    <div class="card-body bg-base-200 text-base-content min-h-full w-80 p-4">
+      <div class="card-header flex justify-between p-2">
+          <h2 class="font-bold">Filter</h2>
+          <button id="apply-filter" type="button" class="btn btn-sm btn-primary text-base-300">Filter</button>
+      </div>
+      {% if pagination.is_filter_applied %}
+        <div id="changelist-filter-extra-actions" class="mb-2 flex justify-between">
+          <h3 class="pt-1">
+              <a href="?"
+                  class="link text-sm">
+                  <i class="fa fa-times text-error"></i>
+                  Clear all filters</a>
+          </h3>
+        </div>
+      {% endif %}
+{% for filter in model_view.get_filters() %}
+      <li class="card">
+        <label class="navbar-nav-link dropdown-toggle">
+        <b class="text-sm mb-1 inline-block capitalize">{{ filter.title }} :</b>
+          <select {{model_view.has_mulitple_choice(filter)}} class="filter-select" data-keys={{filter.parameter_name}}>
+            {% for lookup in filter.lookups(request, model_view.model, model_view._run_arbitrary_query) %}
+                <option  {% if lookup[1] %} selected {% endif %} value={{lookup[0]}}>
+                    {{ lookup[2] }}
+                </option>
+            {% endfor %}
+        </select>
+        </label>
+      </li>
+{% endfor %}
+    </div>
+  </div>
+{% endif %}
+</div>
+
+
+{% endblock %}

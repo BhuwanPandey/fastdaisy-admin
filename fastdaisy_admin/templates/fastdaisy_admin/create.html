@@ -1,0 +1,163 @@
+{% extends "fastdaisy_admin/layout.html" %} {% import
+'fastdaisy_admin/_macros.html' as forms %} {% block breadcrumbs %}
+<div class="flex items-center max-md:p-3 p-5 pb-0 flex-wrap justify-between">
+  <div class="text-sm max-md:hidden breadcrumbs">
+    <ul>
+      <li>
+        <a href="{{ url_for('admin:index') }}" class="link link-hover"
+          >Dashboard</a
+        >
+      </li>
+      <li>
+        <a
+          href="{{ url_for('admin:list',identity=model_view.identity) }}"
+          class="link link-hover"
+          >{{model_view.name}}</a
+        >
+      </li>
+      <li>Add {{model_view.name}}</li>
+    </ul>
+  </div>
+</div>
+{% endblock %} {% block container %}
+<div class="create-content border-base-200 mt-3">
+  <form
+    action="{{ url_for('admin:create', identity=model_view.identity) }}"
+    method="POST"
+    enctype="multipart/form-data"
+    class="w-full h-full"
+  >
+    <div class="grid grid-cols-1">
+      <div class="w-full">
+        {% if error %}
+        <div role="alert" class="alert alert-error mb-5 rounded">
+          <i class="fa fa-exclamation"></i>
+          <span class="text-base-content">{{ error }}</span>
+        </div>
+
+        {% endif %}
+        <!-- name of each tab group should be unique -->
+        <div class="tabs tabs-lift">
+          <a class="indicator tab tab-active">
+            {{ model_view.name }}
+            <i
+              class="text-base-info opacity-50 fa mx-1 {{model_view.icon}} p-1 rounded"
+            ></i>
+          </a>
+          <div role="tabpanel" class="tab-content">
+            <fieldset
+              class="mb-3 ltr:!rounded-tl-none rtl:!rounded-tr-none collapse w-full collapse-arrow overflow-visible fieldset card bg-base-100 p-1"
+            >
+              <input type="checkbox" name="fieldsets-1" checked />
+              <div class="collapse-title text-xl font-medium">
+                {{ model_view.name }}
+              </div>
+              <div class="mb-3 collapse-content w-full max-w-screen-lg">
+                
+                <fieldset class="module aligned mb-4 overflow-visible">
+                  <input type="hidden" name="_form_type" value="added" />
+                  {{ forms.render_form_fields(form,
+                  model_view,apply_class,form_opts=form_opts) }}
+                </fieldset>
+              </div>
+            </fieldset>
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="w-full z-40 border-t border-base-300 sticky max-lg:fixed max-lg:-mx-3 bottom-0"
+      >
+        <div
+          class="p-3 bg-base-100 justify-between flex flex-row-reverse gap-15 sticky top-3 max-md:hidden"
+        >
+          <div class="text-start flex gap-2">
+            <button
+              type="submit"
+              class="btn-sm btn-primary px-4 primary-content text-base-300 btn rounded-md"
+              name="_save"
+            >
+              Save
+              <i class="fas fa-save px-1"></i>
+            </button>
+            {% if model_view.can_edit %}
+            <button
+              class="btn-sm bg-blue-300 text-base-300 btn rounded-md"
+              type="submit"
+              name="_continue"
+            >
+              Save and continue editing
+              <i class="fas fa-sync"></i>
+            </button>
+            {% endif %}
+            <button
+              class="btn-sm bg-blue-300 text-base-300 rounded-md btn"
+              type="submit"
+              name="_addanother"
+            >
+              Save and add another
+              <i class="fas fa-plus-circle"></i>
+            </button>
+          </div>
+          <div class="text-end"></div>
+        </div>
+        <div
+          class="p-3 card bg-base-100 hidden grid-cols-2 max-md:grid gap-3 border !shadow-lg"
+        >
+          <details class="dropdown dropdown-top w-full">
+            <summary
+              type="button"
+              tabindex="0"
+              role="button"
+              class="btn btn-sm btn-block"
+            >
+              Options
+            </summary>
+            <div
+              tabindex="0"
+              class="dropdown-content min-w-full w-max menu bg-base-100 rounded-box z-[1] mb-1 border p-2 shadow"
+            >
+              <button
+                class="btn-sm bg-blue-300 text-base-300 btn rounded-md"
+                type="submit"
+                name="_continue"
+              >
+                Save and continue editing
+                <i class="max-sm:!hidden fas fa-sync"></i>
+              </button>
+              <button
+                class="btn-sm bg-blue-300 text-base-300 rounded-md btn"
+                type="submit"
+                name="_addanother"
+              >
+                Save and add another
+                <i class="max-sm:!hidden fas fa-plus-circle"></i>
+              </button>
+              <div class="mobile-option-tools mt-2">
+                <div class="text-start flex gap-2">
+                  <a
+                    href=""
+                    class="sm:btn-auto historylink btn-sm btn btn-info rounded-md"
+                  >
+                    History
+                    <i class="fa fa-history"></i>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </details>
+          <button
+            type="submit"
+            class="btn-sm btn-primary px-4 btn rounded-md text-base-300"
+            name="_save"
+          >
+            Save
+            <i class="fas fa-save px-1"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+{% endblock %}
