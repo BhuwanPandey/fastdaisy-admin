@@ -1,0 +1,43 @@
+---
+title: "Welcome to Fastdaisy-Admin!"
+sidebarTitle: "Welcome!"
+description: DaisyUI Admin for Fastapi/Starlette.
+
+icon: hand-wave
+---
+
+Fastdaisy-admin is an admin panel with DaisyUI for managing SQLAlchemy models. It offers a dashboard experience similar to `Django Admin` and combining the design of [**django-daisy**](https://hypy13.github.io/django-daisy-docs) with the functionality of [**Sqladmin**](https://github.com/aminalaee/sqladmin).
+
+
+```python {2, 6, 14}
+from fastapi import FastAPI
+from fastdaisy_admin import Admin, ModelView
+
+
+app = FastAPI()
+admin = Admin(app, engine)
+
+
+class UserAdmin(ModelView):
+    model = User
+    column_list = [User.id, User.name]
+
+
+admin.add_view(UserAdmin)
+```
+That's it! Your beautiful admin panel is live at `https://app.base.url/admin`
+
+## Features
+
+- [**SQLAlchemy**](https://github.com/sqlalchemy/sqlalchemy) sync/async Core Database ORM
+
+- [**Starlette**](https://github.com/Kludex/starlette) sync/async Backend Server
+
+- [**WTForms**](https://github.com/pallets-eco/wtforms) Form Building
+
+- [**SQLModel**](https://github.com/fastapi/sqlmodel) sync/async Database ORM
+
+- [**DaisyUI**](https://github.com/saadeghi/daisyui) Admin UI
+
+- **Django-Admin** Similar Features
+

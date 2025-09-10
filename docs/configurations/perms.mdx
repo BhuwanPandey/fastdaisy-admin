@@ -1,0 +1,90 @@
+---
+title: Permissions & Metadata 
+icon: shield-check    
+---
+
+Now, Let me create various model and integrate `fastapi-admin` into fastapi application.
+
+```python
+from sqlalchemy import Column, Boolean, Integer, String, create_engine
+from sqlalchemy.orm import declarative_base
+from fastapi import FastAPI
+from fastdaisy_admin import Admin, ModelView
+
+Base = declarative_base()
+engine = create_engine(
+    "sqlite:///example.db",
+    connect_args={"check_same_thread": False},
+)
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    email = Column(String)
+    password = Column(String)
+    address = Column(String)
+    age = Column(Integer)
+    is_admin = Column(Boolean, default=False)
+
+
+Base.metadata.create_all(engine)  # Create tables
+
+
+# ---------------  Admin registration ---------------
+
+app = FastAPI()
+admin = Admin(app, engine)
+
+class UserAdmin(ModelView):
+    model = User
+    column_list = [User.id, User.name]
+
+
+admin.add_view(UserAdmin)
+```
+
+## Permissions
+
+You can configure a few general permissions for this model. The following options are available:
+
+- `can_create`: Allow to create new instances. Default value is True.
+- `can_edit`: Allow to edit created instances. Default value is True.
+- `can_delete`: Allow to delete model instance. Default value is True.
+- `only_view`: Only allow to view instance . Default value is False.
+- `can_export`: The model data can be exported in the list page. Default value is True.
+
+```python {4-7}
+
+class UserAdmin(ModelView):
+    model = User
+    can_create = True
+    can_edit = True
+    can_delete = False
+    only_view = False
+```
+
+## Metadata
+
+The metadata for the model. The options are:
+
+- `name`: Display name for this model. Default value is the class name.
+- `name_plural`: Display plural name for this model. Default value is class name + s.
+- `icon`: Icon to be displayed for this model in the admin. Only FontAwesome supported.
+- `category`: Category name to display group of ModelView classes together in dropdown.
+- `category_icon`: Category icon to display.
+- `divider_title`: Title for divider which separate model in sidebar.
+
+```python {4-9}
+
+class UserAdmin(ModelView):
+    model = User
+    name = "User"
+    name_plural = "Users"
+    icon = "fa-solid fa-user"
+    category = "accounts"
+    category_icon = "fa-solid fa-user"
+    divider_title = 'Apps'
+
+```

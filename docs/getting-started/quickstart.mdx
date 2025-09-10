@@ -1,0 +1,74 @@
+---
+title: Quickstart
+icon: rocket
+---
+
+This guide will help you quickly setup admin dashboard using Fastdaisy-Admin.
+
+If you haven't already installed Fastdaisy-Admin, follow the [installation instructions](/getting-started/installation).
+
+## Creating a sqlalchemy model
+
+```python {19}
+from sqlalchemy import Column, Integer, String, create_engine
+from sqlalchemy.orm import declarative_base
+
+
+Base = declarative_base()
+engine = create_engine(
+    "sqlite:///example.db",
+    connect_args={"check_same_thread": False},
+)
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+
+
+Base.metadata.create_all(engine)  # Create tables
+```
+
+
+## Fastdaisy-Admin with Starlette
+
+
+```python {2,6,14}
+from starlette.applications import Starlette
+from fastdaisy-admin import Admin, ModelView
+
+
+app = Starlette()
+admin = Admin(app, engine)
+
+
+class UserAdmin(ModelView):
+    model = User
+    column_list = [User.id, User.name]
+
+
+admin.add_view(UserAdmin)
+```
+
+## OR: Fastdaisy-Admin with FastAPI
+
+```python {2,6,13}
+from fastapi import FastAPI
+from fastdaisy-admin import Admin, ModelView
+
+
+app = FastAPI()
+admin = Admin(app, engine)
+
+
+class UserAdmin(ModelView, model=User):
+    column_list = [User.id, User.name]
+
+
+admin.add_view(UserAdmin)
+```
+
+and run the server using `fastapi dev` or `uvicorn app:app --reload`, which will serve you at `http://127.0.0.1:8000/admin`.
+

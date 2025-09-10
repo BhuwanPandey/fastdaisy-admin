@@ -1,0 +1,44 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "Fastdaisy Admin",
+  "background": {
+    "color": {
+      "dark": "#222831",
+      "light": "#EEEEEE"
+    },
+    "decoration": "windows"
+  },
+  "colors": {
+    "primary": "#6d45dc",
+    "light": "#9f8ded",
+    "dark": "#6a42d7"
+  },
+  "favicon": "media/admin_dark.svg",
+  "navigation": {
+    "groups": [
+      {
+        "group": "Getting Started",
+        "pages": [
+          "getting-started/welcome",
+          "getting-started/installation",
+          "getting-started/quickstart"
+        ]
+      },
+      {
+        "group": "Configurations",
+        "pages": ["configurations/perms", "configurations/pages", "configurations/tem_events"]
+      }
+    ]
+  },
+  "logo": {
+    "light": "/media/admin_dark.svg",
+    "dark": "/media/admin_white.svg"
+  },
+  "navbar": {
+    "primary": {
+      "href": "https://github.com/BhuwanPandey/fastdaisy-admin",
+      "type": "github"
+    }
+  },
+  "theme": "mint"
+}
