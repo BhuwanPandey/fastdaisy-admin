@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 Base = declarative_base()
 
 app = Starlette()
-admin = Admin(app=app, engine=engine, templates_dir="tests/templates")
+admin = Admin(app=app, secret_key='test',engine=engine, templates_dir="tests/templates")
 
 
 class CustomAdmin(BaseView):

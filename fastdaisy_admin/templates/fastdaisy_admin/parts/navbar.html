@@ -34,5 +34,24 @@
                 {% endfor %}
             </ul>
         </div>
+
+        {% if admin.authentication_backend %}
+            <div class="dropdown dropdown-bottom dropdown-end">
+            <div tabindex="0" role="button" class="btn btn-ghost btn-circle m-1">
+                <i class="fa-regular fa-user text-lg"></i>
+            </div>
+            <ul tabindex="0" class="dropdown-content rounded-md  bg-base-300 z-20 w-48 p-2 shadow-2xl">
+                <li>
+                    <a class="btn btn-sm btn-block btn-ghost justify-start"
+                        href="#">Change password</a>
+                </li>
+                <li>
+                    <a class="btn btn-sm btn-block btn-ghost justify-start" data-url="{{ url_for('admin:logout')}}" id="logout"
+                        href="#">Log out</a>
+                </li>
+            </ul>
+            </div>
+
+        {% endif %}
     </div>
 </div>

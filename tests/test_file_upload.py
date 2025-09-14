@@ -16,7 +16,7 @@ Base = declarative_base()  # type: Any
 session_maker = sessionmaker(bind=engine)
 
 app = Starlette()
-admin = Admin(app=app, engine=engine)
+admin = Admin(app=app, secret_key='test',engine=engine)
 
 
 class User(Base):

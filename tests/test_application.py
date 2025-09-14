@@ -43,7 +43,7 @@ def prepare_database() -> Generator[None, None, None]:
 
 def test_application_title() -> None:
     app = Starlette()
-    Admin(app=app, engine=engine)
+    Admin(app=app, secret_key='test',engine=engine)
 
     with TestClient(app) as client:
         response = client.get("/admin")
@@ -72,6 +72,7 @@ def test_middlewares() -> None:
     app = Starlette()
     Admin(
         app=app,
+        secret_key='test',
         engine=engine,
         middlewares=[Middleware(CorrelationIdMiddleware)],
     )
@@ -87,7 +88,7 @@ def test_middlewares() -> None:
 def test_get_save_redirect_url():
     app = Starlette()
     app.add_middleware(SessionMiddleware, secret_key="test-secret")
-    admin = Admin(app=app, engine=engine)
+    admin = Admin(app=app, secret_key='test',engine=engine)
     added_users = []
 
     class UserAdmin(ModelView):
@@ -130,7 +131,7 @@ def test_get_save_redirect_url():
 
 def test_build_category_menu():
     app = Starlette()
-    admin = Admin(app=app, engine=engine)
+    admin = Admin(app=app, secret_key='test',engine=engine)
 
     class UserAdmin(ModelView):
         model=User
@@ -145,7 +146,7 @@ def test_build_category_menu():
 
 def test_normalize_wtform_fields() -> None:
     app = Starlette()
-    admin = Admin(app=app, engine=engine)
+    admin = Admin(app=app, secret_key='test',engine=engine)
 
     class DataModelAdmin(ModelView):
         model=DataModel
@@ -157,7 +158,7 @@ def test_normalize_wtform_fields() -> None:
 
 def test_denormalize_wtform_fields() -> None:
     app = Starlette()
-    admin = Admin(app=app, engine=engine)
+    admin = Admin(app=app, secret_key='test',engine=engine)
 
     class DataModelAdmin(ModelView):
         model=DataModel
@@ -171,7 +172,7 @@ def test_denormalize_wtform_fields() -> None:
 
 def test_validate_page():
     app = Starlette()
-    admin = Admin(app=app, engine=engine)
+    admin = Admin(app=app, secret_key='test',engine=engine)
 
     class UserAdmin(ModelView):
         model=User

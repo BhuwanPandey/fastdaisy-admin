@@ -30,7 +30,7 @@ Base = declarative_base()  # type: ignore
 session_maker = sessionmaker(bind=engine)
 
 app = Starlette()
-admin = Admin(app=app, session_maker=session_maker)
+admin = Admin(app=app, secret_key='test',session_maker=session_maker)
 
 
 class Status(enum.Enum):
@@ -176,7 +176,7 @@ def test_column_exclude_list_by_str_name() -> None:
         model=User
         column_exclude_list = ["id"]
 
-    assert UserAdmin().get_list_columns() == ["addresses", "profile", "groups", "name"]
+    assert UserAdmin().get_list_columns() == ["name", "addresses", "profile", "groups"]
 
 
 def test_column_exclude_list_by_model_column() -> None:
@@ -201,20 +201,6 @@ async def test_column_list_formatters() -> None:
     assert await UserAdmin().get_list_value(user, "name") == ("Long Name", "L",False)
 
 
-async def test_column_formatters_detail() -> None:
-    class UserAdmin(ModelView):
-        model=User
-        column_formatters_detail = {
-            "id": lambda *args: 2,
-            User.name: lambda m, a: m.name[:1],
-        }
-
-    user = User(id=1, name="Long Name")
-
-    assert await UserAdmin().get_detail_value(user, "id") == (1, 2)
-    assert await UserAdmin().get_detail_value(user, "name") == ("Long Name", "L")
-
-
 async def test_column_formatters_default() -> None:
     class ProfileAdmin(ModelView):
         model=Profile
@@ -227,59 +213,6 @@ async def test_column_formatters_default() -> None:
         Markup("<i class='fa fa-circle-check text-success'></i>"),
         False
     )
-    assert await ProfileAdmin().get_detail_value(profile, "is_active") == (
-        True,
-        Markup("<i class='fa fa-circle-check text-success'></i>")
-    )
-
-
-# def test_column_details_list_both_include_and_exclude() -> None:
-#     with pytest.raises(AssertionError) as exc:
-
-#         class InvalidAdmin(ModelView):
-#             model=User
-#             column_details_list = ["id"]
-#             column_details_exclude_list = ["name"]
-
-#         InvalidAdmin()
-
-#     assert exc.match(
-#         "Cannot use column_details_list and column_details_exclude_list together."
-#     )
-
-
-def test_column_details_list_default() -> None:
-    class UserAdmin(ModelView):
-        model=User
-
-    assert UserAdmin().get_details_columns() == [
-        "addresses",
-        "profile",
-        "groups",
-        "id",
-        "name",
-    ]
-
-
-def test_column_details_list_by_model_column() -> None:
-    class UserAdmin(ModelView):
-        model=User
-        column_details_list = [User.name, User.id]
-
-    assert UserAdmin().get_details_columns() == ["name", "id"]
-
-
-def test_column_details_exclude_list_by_model_column() -> None:
-    class UserAdmin(ModelView):
-        model=User
-        column_details_exclude_list = [User.id]
-
-    assert UserAdmin().get_details_columns() == [
-        "addresses",
-        "profile",
-        "groups",
-        "name",
-    ]
 
 
 def test_form_columns_default() -> None:
@@ -469,27 +402,6 @@ async def test_get_model_objects_uses_list_query() -> None:
     assert len(await view.get_model_objects(request)) == 1
 
 
-async def test_get_details_query() -> None:
-    session = session_maker()
-    batman = User(id=123, name="batman")
-    gotham = Group(users=[batman], name="gotham city")
-    dc = Group(users=[batman], name="dc")
-    session.add(batman)
-    session.add(gotham)
-    session.add(dc)
-    session.commit()
-
-    class UserAdmin(ModelView):
-        model=User
-        async_engine = False
-        session_maker = session_maker
-
-    view = UserAdmin()
-    request = Request({"type": "http", "path_params": {"pk": 123}})
-    user = await view.get_object_for_details(request)
-    assert len(user.groups) == 2
-
-
 async def test_form_edit_query() -> None:
     session = session_maker()
     batman = User(id=123, name="batman")
@@ -532,7 +444,6 @@ def test_model_columns_all_keyword() -> None:
         column_details_list = "__all__"
 
     assert AddressAdmin().get_list_columns() == ["user", "id", "name", "user_id"]
-    assert AddressAdmin().get_details_columns() == ["user", "id", "name", "user_id"]
 
 
 async def test_get_prop_value() -> None:
@@ -560,13 +471,6 @@ async def test_model_property_in_columns() -> None:
     user = User(id=1, name="batman")
 
     assert UserAdmin().get_list_columns() == ["id", "name", "name_with_id"]
-    assert UserAdmin().get_details_columns() == [
-        "addresses",
-        "profile",
-        "groups",
-        "id",
-        "name",
-    ]
     assert await UserAdmin().get_prop_value(user, "name_with_id") == "batman - 1"
 
 

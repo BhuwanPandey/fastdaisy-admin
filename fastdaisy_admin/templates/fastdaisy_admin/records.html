@@ -1,94 +1,116 @@
 <div class="overflow-x-auto">
-    <table class="table table-sm table-auto !w-full">
-        <!-- head -->
-        <thead class="bg-base-300 text-gray-950">
-        <tr>
-            <th scope="col" class="!w-15">
-                    <div class="flex flex-row indicator">
-                        <div class="text text-base-content">
-                            <span>
-                                <input type="checkbox" id="select-all">
-                            </span>
-                        </div>
-                    </div>
-            </th>
-            <!-- title -->
-            {% for name in model_view._list_prop_names %}
-              {% set label = model_view._column_labels.get(name, name) %}
-                <th scope="col"  class="w-25">
-                <div class="flex flex-row indicator">
-                    <div class="text text-base-content">
-                      {% set title = model_view._str_to_model(label) %}
-                      {% if name in model_view._sort_fields %}
-                        {% if request.query_params.get("sortBy") == name and request.query_params.get("sort") == "asc" %}
-                        <a href="{{ request.url.include_query_params(sort='desc') }}" class="text-blue-600 hover:underline"><i class="fa-solid fa-arrow-up"></i> {{
-                          title }}</a>
-                        {% elif request.query_params.get("sortBy") == name and request.query_params.get("sort") == "desc" %}
-                        <a href="{{ request.url.include_query_params(sort='asc') }}" class="text-blue-600 hover:underline"><i class="fa-solid fa-arrow-down"></i> {{ title
-                          }}</a>
-                        {% else %}
-                        <a href="{{ request.url.include_query_params(sortBy=name, sort='asc') }}" class="text-blue-600 hover:underline">{{ title }}</a>
-                        {% endif %}
-                      {% else %}
-                        {{title}}
-                      {% endif %}
-                      
-                    </div>
-                </div>
-                </th>
-            {% endfor %}
+  <table class="table table-sm table-auto !w-full">
+    <!-- head -->
+    <thead class="bg-base-300 text-gray-950">
+      <tr>
+        <th scope="col" class="!w-15">
+          <div class="flex flex-row indicator">
+            <div class="text text-base-content">
+              <span>
+                <input type="checkbox" id="select-all" />
+              </span>
+            </div>
+          </div>
+        </th>
+        <!-- title -->
+        {% for name in model_view._list_prop_names %} {% set label =
+        model_view._column_labels.get(name, name) %}
+        <th scope="col" class="w-25">
+          <div class="flex flex-row indicator">
+            <div class="text text-base-content">
+              {% set title = model_view._str_to_model(label) %} {% if name in
+              model_view._sort_fields %} {% if
+              request.query_params.get("sortBy") == name and
+              request.query_params.get("sort") == "asc" %}
+              <a
+                href="{{ request.url.include_query_params(sort='desc') }}"
+                class="text-blue-600 hover:underline"
+                ><i class="fa-solid fa-arrow-up"></i> {{ title }}</a
+              >
+              {% elif request.query_params.get("sortBy") == name and
+              request.query_params.get("sort") == "desc" %}
+              <a
+                href="{{ request.url.include_query_params(sort='asc') }}"
+                class="text-blue-600 hover:underline"
+                ><i class="fa-solid fa-arrow-down"></i> {{ title }}</a
+              >
+              {% else %}
+              <a
+                href="{{ request.url.include_query_params(sortBy=name, sort='asc') }}"
+                class="text-blue-600 hover:underline"
+                >{{ title }}</a
+              >
+              {% endif %} {% else %} {{title}} {% endif %}
+            </div>
+          </div>
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in pagination.rows %}
+      <tr>
+        <td class="action-checkbox">
+          <input
+            type="checkbox"
+            name="_selected_action"
+            class="select-box checkbox checkbox-xs rounded-[0.3rem]"
+            aria-label="Select item"
+            value="{{ get_object_identifier(row) }}"
+          />
+        </td>
 
-        </tr>
-        </thead>
-        <tbody>
-            {% for row in pagination.rows %}
-                <tr>
-                    <td class="action-checkbox">
-                        <input type="checkbox" name="_selected_action" class="select-box checkbox checkbox-xs rounded-[0.3rem]" aria-label="Select item" value="{{ get_object_identifier(row) }}">
-                    </td>
-                    
-                    {% for name in model_view._list_prop_names %}
-                    {% set value, formatted_value, has_link = model_view.get_list_value(row, name) %}
-                    {% if name in model_view._relation_names %}
-                    {% if is_list( value ) %}
-
-                    <td class="field-text">
-                        {% for elem, formatted_elem in zip(value, formatted_value) %}
-                            {% if model_view.show_compact_lists %}
-                              <a href="{{ model_view._build_url_for('admin:edit', request, elem) }}">({{ formatted_elem }})</a>
-                            {% else %}
-                              <a href="{{ model_view._build_url_for('admin:edit', request, elem) }}">{{ formatted_elem }}</a><br/>
-                            {% endif %}
-                          {% endfor %}
-                    </td>
-                        {% else %}
-                        <td><a href="{{ model_view._build_url_for('admin:edit', request, row) }}">{{ formatted_value }}</a></td>
-                        {% endif %}
-                        {% else %}
-                        <td class="break-all">
-                          {% if has_link %}
-                          <a class="text-blue-600" href="{{ model_view._build_url_for('admin:edit', request, row) }}">{{ formatted_value }}</a>
-                          {% else %}
-                          {{formatted_value}}
-                          {% endif %}
-                        
-                        </td>
-                        {% endif %}
-                        {% endfor %}
-                    </tr>
-                    {% else %}
-            <tr class="text-lg/7">
-              {% if model_view._list_prop_names | length == 1 %} <th></th> {% endif %}
-                <th colspan="100%" class="{% if model_view._list_prop_names | length > 1 %} text-center {% endif %}">
-                    Empty Result
-                        <a class="link link-primary px-1 text-primary" href="?">
-                          {% if request.query_params.get('search') or active_filter %}
-                            Clear all filters
-                          {% endif %}
-                        </a>
-                </th>
-            </tr>
-          {% endfor %}
-        </tbody>
-    </table>
+        {% for name in model_view._list_prop_names %} {% set value,
+        formatted_value, has_link = model_view.get_list_value(row, name) %} {%
+        if name in model_view._relation_names %} {% if is_list( value ) %}
+        <td class="field-text">
+          {% for elem, formatted_elem in zip(value, formatted_value) %} {% if
+          model_view.show_compact_lists %}
+          <a href="{{ model_view._build_url_for('admin:edit', request, elem) }}"
+            >({{ formatted_elem }})</a
+          >
+          {% else %}
+          <a href="{{ model_view._build_url_for('admin:edit', request, elem) }}"
+            >{{ formatted_elem }}</a
+          ><br />
+          {% endif %} {% endfor %}
+        </td>
+        {% else %}
+        <td>
+          <a
+            href="{{ model_view._build_url_for('admin:edit', request, value) }}"
+            >{{ formatted_value }}</a
+          >
+        </td>
+        {% endif %} {% else %}
+        <td class="break-all">
+          {% if has_link %}
+          <a
+            class="text-blue-600"
+            href="{{ model_view._build_url_for('admin:edit', request, row) }}"
+            >{{ formatted_value }}</a
+          >
+          {% else %} {{formatted_value}} {% endif %}
+        </td>
+        {% endif %} {% endfor %}
+      </tr>
+      {% else %}
+      <tr class="text-lg/7">
+        {% if model_view._list_prop_names | length == 1 %}
+        <th></th>
+        {% endif %}
+        <th
+          colspan="100%"
+          class="{% if model_view._list_prop_names | length > 1 %} text-center {% endif %}"
+        >
+          Empty Result
+          <a class="link link-primary px-1 text-primary" href="?">
+            {% if request.query_params.get('search') or
+            pagination.is_filter_applied %} Clear all filters {% endif %}
+          </a>
+        </th>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>

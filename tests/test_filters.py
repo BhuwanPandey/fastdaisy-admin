@@ -16,7 +16,7 @@ Base = declarative_base()  # type: Any
 session_maker = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
 app = Starlette()
-admin = Admin(app=app, engine=engine)
+admin = Admin(app=app, secret_key='test',engine=engine)
 
 
 class User(Base):
@@ -160,8 +160,8 @@ async def test_boolean_filter_functionality(client: AsyncClient) -> None:
     assert "Admin User" in td_texts
     assert "Regular User" in td_texts
 
-    # Test filtering for admin users (is_admin=True)
-    response = await client.get("/admin/user/list?is_admin=True")
+    # Test filtering for admin users (is_admin=true)
+    response = await client.get("/admin/user/list?is_admin=true")
     assert response.status_code == 200
     soup = BeautifulSoup(response.text,'html.parser')
     td_tags = soup.find_all('td', class_='break-all')
@@ -169,8 +169,8 @@ async def test_boolean_filter_functionality(client: AsyncClient) -> None:
     assert "Admin User" in td_texts
     assert "Regular User" not in td_texts
 
-    # Test filtering for non-admin users (is_admin=False)
-    response = await client.get("/admin/user/list?is_admin=False")
+    # Test filtering for non-admin users (is_admin=false)
+    response = await client.get("/admin/user/list?is_admin=false")
     soup = BeautifulSoup(response.text,'html.parser')
     td_tags = soup.find_all('td', class_='break-all')
     td_texts = [td.get_text(strip=True) for td in td_tags]

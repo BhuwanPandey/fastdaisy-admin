@@ -1,26 +1,18 @@
-// Handle delete modal
-$(document).on('shown.bs.modal', '#modal-delete', function (event) {
-  var element = $(event.relatedTarget);
+// Handle logout
 
-  var name = element.data("name");
-  var pk = element.data("pk");
-  $("#modal-delete-text").text("This will permanently delete " + name + " " + pk + " ?");
-
-  $("#modal-delete-button").attr("data-url", element.data("url"));
-});
-
-$(document).on('click', '#modal-delete-button', function () {
+$(document).on('click', '#logout', function () {
   $.ajax({
     url: $(this).attr('data-url'),
-    method: 'DELETE',
+    method: 'POST',
     success: function (result) {
-      window.location.href = result;
+      window.location.href = result.redirect_url;
     },
     error: function (request, status, error) {
       alert(request.responseText);
     }
   });
 });
+
 
 // Search
 $(document).on('click', '#search-button', function () {
@@ -38,30 +30,6 @@ $(document).on('click', '#search-button', function () {
 });
 
 
-// Reset search
-$(document).on('click', '#search-reset', function () {
-  if (window.location.search && window.location.search.indexOf('search=') != -1) {
-    window.location.href = window.location.search.replace(/search=[^&]*/, "");
-  }
-});
-
-// Press enter to search
-$(document).on('keypress', '#search-input', function (e) {
-  if (e.which === 13) {
-    $('#search-button').click();
-  }
-});
-
-// Init a timeout variable to be used below
-var timeout = null;
-// Search
-$(document).on('keyup', '#search-input', function (e) {
-  clearTimeout(timeout);
-  // Make a new timeout set to go off in 1000ms (1 second)
-  timeout = setTimeout(function () {
-    $('#search-button').click();
-  }, 1000);
-});
 
 // Date picker
 $(':input[data-role="datepicker"]:not([readonly])').each(function () {

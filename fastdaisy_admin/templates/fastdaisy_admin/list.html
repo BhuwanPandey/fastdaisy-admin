@@ -5,7 +5,7 @@
         <div class="text-sm max-md:hidden breadcrumbs">
         <ul>
                 <li><a href="{{ url_for('admin:index') }}" class="link link-hover">Dashboard</a></li>
-                <li><a href="{{ url_for('admin:list',identity=identity) }}"class="link link-hover">{{model_view.name_plural}}</a></li>
+                <li><a href="{{ url_for('admin:list',identity=model_view.identity) }}"class="link link-hover">{{model_view.name_plural}}</a></li>
             </ul>
         </div>
         </div>
