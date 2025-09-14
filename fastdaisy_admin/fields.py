@@ -7,12 +7,9 @@ from typing import Any, Callable, Generator
 from wtforms import Form, ValidationError, fields, widgets
 
 from fastdaisy_admin import widgets as admin_widgets
-from fastdaisy_admin.ajax import QueryAjaxModelLoader
 from fastdaisy_admin.helpers import get_object_identifier, parse_interval
 
 __all__ = [
-    "AjaxSelectField",
-    "AjaxSelectMultipleField",
     "DateField",
     "DateTimeField",
     "IntervalField",
@@ -285,90 +282,6 @@ class QuerySelectMultipleField(QuerySelectField):
             for v in self.data:
                 if v not in pk_list:  # pragma: no cover
                     raise ValidationError(self.gettext("Not a valid choice"))
-
-
-class AjaxSelectField(fields.SelectFieldBase):
-    widget = admin_widgets.AjaxSelect2Widget()
-    separator = ","
-
-    def __init__(
-        self,
-        loader: QueryAjaxModelLoader,
-        label: str | None = None,
-        validators: list | None = None,
-        allow_blank: bool = False,
-        **kwargs: Any,
-    ) -> None:
-        kwargs.pop("data", None)  # Handled by JS side
-        self.loader = loader
-        self.allow_blank = allow_blank
-        super().__init__(label, validators, **kwargs)
-
-    @property
-    def data(self) -> Any:
-        if self._formdata:
-            self.data = self._formdata
-
-        return self._data
-
-    @data.setter
-    def data(self, data: Any) -> None:
-        self._data = data
-        self._formdata = None
-
-    def process_formdata(self, valuelist: list) -> None:
-        if valuelist:
-            if self.allow_blank and valuelist[0] == "__None":
-                self.data = None
-            else:
-                self._data = None
-                self._formdata = valuelist[0]
-
-    def pre_validate(self, form: Form) -> None:
-        if not self.allow_blank and self.data is None:
-            raise ValidationError("Not a valid choice")
-
-
-class AjaxSelectMultipleField(fields.SelectFieldBase):
-    widget = admin_widgets.AjaxSelect2Widget(multiple=True)
-    separator = ","
-
-    def __init__(
-        self,
-        loader: QueryAjaxModelLoader,
-        label: str | None = None,
-        validators: list | None = None,
-        default: list | None = None,
-        allow_blank: bool = False,
-        **kwargs: Any,
-    ) -> None:
-        kwargs.pop("data", None)  # Handled by JS side
-        self.loader = loader
-        self.allow_blank = allow_blank
-        default = default or []
-        self._formdata: set[Any] = set()
-
-        super().__init__(label, validators, default=default, **kwargs)
-
-    @property
-    def data(self) -> Any:
-        if self._formdata:
-            self.data = self._formdata
-
-        return self._data
-
-    @data.setter
-    def data(self, data: Any) -> None:
-        self._data = data
-        self._formdata = set()
-
-    def process_formdata(self, valuelist: list) -> None:
-        self._formdata = set()
-
-        for field in valuelist:
-            for n in field.split(self.separator):
-                self._formdata.add(n)
-
 
 class Select2TagsField(fields.SelectField):
     widget = admin_widgets.Select2TagsWidget()

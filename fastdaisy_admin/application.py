@@ -30,7 +30,6 @@ from starlette.staticfiles import StaticFiles
 
 from fastdaisy_admin._menu import CategoryMenu, Menu, ViewMenu
 from fastdaisy_admin._types import ENGINE_TYPE,AdminAction
-from fastdaisy_admin.ajax import QueryAjaxModelLoader
 from fastdaisy_admin.authentication import AuthenticationBackend, login_required
 from fastdaisy_admin.forms import WTFORMS_ATTRS, WTFORMS_ATTRS_REVERSED
 from fastdaisy_admin.helpers import (
@@ -69,6 +68,7 @@ class BaseAdmin:
     def __init__(
         self,
         app: Starlette,
+        secret_key:str,
         engine: ENGINE_TYPE | None = None,
         session_maker: sessionmaker | None = None,
         base_url: str = "/admin",
@@ -99,12 +99,9 @@ class BaseAdmin:
 
         middlewares = middlewares or []
         self.authentication_backend = authentication_backend
-        if authentication_backend:
-            middlewares = list(middlewares)
-            middlewares.extend(authentication_backend.middlewares)
 
         middlewares = list(middlewares)
-        middlewares.extend([Middleware(SessionMiddleware, secret_key="random")])
+        middlewares.extend([Middleware(SessionMiddleware, secret_key=secret_key)])
         self.admin = Starlette(middleware=middlewares)
         self.templates = self.init_templating_engine()
         self._views: list[BaseView | ModelView] = []
@@ -182,21 +179,8 @@ class BaseAdmin:
         for func in custom_action:
             if hasattr(func, "_action"):
                 view_instance = cast(ModelView, view_instance)
-                # self.admin.add_route(
-                #     route=func,
-                #     path=f"/{view_instance.identity}/action/" + getattr(func, "_slug"),
-                #     methods=["GET"],
-                #     name=f"action-{view_instance.identity}-{getattr(func, '_slug')}",
-                #     include_in_schema=getattr(func, "_include_in_schema"),
-                # )
-
-                # if getattr(func, "_add_in_list"):
-                #     view_instance._custom_actions_in_list[getattr(func, "_slug")] = getattr(
-                #         func, "_label"
-                #     )
                 view_instance._custom_actions_in_list[getattr(func, "_title")] = func
                 
-
     def _handle_expose_decorated_func(
         self,
         func: MethodType,
@@ -236,15 +220,9 @@ class BaseAdmin:
         # Set database engine from Admin instance
         view.session_maker = self.session_maker
         view.is_async = self.is_async
-        view.ajax_lookup_url = urljoin(
-            self.base_url + "/", f"{view.identity}/ajax/lookup"
-        )
         view.templates = self.templates
         view_instance = view()
 
-        # self._find_decorated_funcs(
-        #     view, view_instance, self._handle_action_decorated_func
-        # )
         self._handle_action_decorated_func(view_instance)
 
         self._find_decorated_funcs(
@@ -344,7 +322,8 @@ class Admin(BaseAdminView):
         admin = Admin(app, engine)
 
 
-        class UserAdmin(ModelView, model=User):
+        class UserAdmin(ModelView):
+            model = User
             column_list = [User.id, User.name]
 
 
@@ -355,6 +334,7 @@ class Admin(BaseAdminView):
     def __init__(
         self,
         app: Starlette,
+        secret_key:str,
         engine: ENGINE_TYPE | None = None,
         session_maker: sessionmaker | "async_sessionmaker" | None = None,
         base_url: str = "/admin",
@@ -379,6 +359,7 @@ class Admin(BaseAdminView):
 
         super().__init__(
             app=app,
+            secret_key=secret_key,
             engine=engine,
             session_maker=session_maker,
             base_url=base_url,
@@ -429,11 +410,8 @@ class Admin(BaseAdminView):
             Route(
                 "/{identity}/export/{export_type}", endpoint=self.export, name="export"
             ),
-            Route(
-                "/{identity}/ajax/lookup", endpoint=self.ajax_lookup, name="ajax_lookup"
-            ),
             Route("/login", endpoint=self.login, name="login", methods=["GET", "POST"]),
-            Route("/logout", endpoint=self.logout, name="logout", methods=["GET"]),
+            Route("/logout", endpoint=self.logout, name="logout", methods=["POST"]),
         ]
 
         self.admin.router.routes = routes
@@ -481,7 +459,6 @@ class Admin(BaseAdminView):
                 url = URL(str(request.url_for("admin:list", identity=identity)))
                 return RedirectResponse(url=url,status_code=302)
         
-
         pagination = await model_view.list(request)
         pagination.add_pagination_urls(request.url)
         request_page = model_view.validate_page(
@@ -493,7 +470,7 @@ class Admin(BaseAdminView):
             )
 
         context = {
-            "model_view": model_view, "pagination": pagination,"identity":identity
+            "model_view": model_view, "pagination": pagination
         }
         return await self.templates.TemplateResponse(
             request, model_view.list_template, context
@@ -669,32 +646,10 @@ class Admin(BaseAdminView):
     async def logout(self, request: Request) -> Response:
         assert self.authentication_backend is not None
 
-        response = await self.authentication_backend.logout(request)
+        await self.authentication_backend.logout(request)
 
-        if isinstance(response, Response):
-            return response
-
-        return RedirectResponse(request.url_for("admin:index"), status_code=302)
-
-    async def ajax_lookup(self, request: Request) -> Response:
-        """Ajax lookup route."""
-
-        identity = request.path_params["identity"]
-        model_view = self._find_model_view(identity)
-
-        name = request.query_params.get("name")
-        term = request.query_params.get("term")
-
-        if not name or not term:
-            raise HTTPException(status_code=400)
-
-        try:
-            loader: QueryAjaxModelLoader = model_view._form_ajax_refs[name]
-        except KeyError:
-            raise HTTPException(status_code=400)
-
-        data = [loader.format(m) for m in await loader.get_list(term)]
-        return JSONResponse({"results": data})
+        url = str(request.url_for("admin:login"))
+        return JSONResponse({"redirect_url":url})
 
     def get_save_redirect_url(
         self, request: Request, form: FormData, model_view: ModelView, obj: Any

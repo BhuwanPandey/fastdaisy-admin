@@ -45,11 +45,8 @@ from fastdaisy_admin._validators import (
     PhoneNumberValidator,
     TimezoneValidator,
 )
-# from fastdaisy_admin.ajax import QueryAjaxModelLoader
 from fastdaisy_admin.exceptions import NoConverterFound
 from fastdaisy_admin.fields import (
-    AjaxSelectField,
-    AjaxSelectMultipleField,
     DateField,
     DateTimeField,
     FileField,
@@ -129,7 +126,6 @@ class ModelConverterBase:
         field_args: dict[str, Any],
         field_widget_args: dict[str, Any],
         label: str | None = None,
-        loader: QueryAjaxModelLoader | None = None,
     ) -> dict[str, Any] | None:
         if not isinstance(prop, (RelationshipProperty, ColumnProperty)):
             return None
@@ -155,7 +151,7 @@ class ModelConverterBase:
             )
         else:
             kwargs = await self._prepare_relationship(
-                prop=prop, session_maker=session_maker, kwargs=kwargs, loader=loader
+                prop=prop, session_maker=session_maker, kwargs=kwargs
             )
 
         return kwargs
@@ -204,8 +200,7 @@ class ModelConverterBase:
         self,
         prop: RelationshipProperty,
         kwargs: dict,
-        session_maker: sessionmaker,
-        loader: QueryAjaxModelLoader | None = None,
+        session_maker: sessionmaker
     ) -> dict:
         nullable = True
         for pair in prop.local_remote_pairs:
@@ -214,10 +209,10 @@ class ModelConverterBase:
 
         kwargs["allow_blank"] = nullable
 
-        if not loader:
-            kwargs.setdefault(
-                "data", await self._prepare_select_options(prop, session_maker)
-            )
+        
+        kwargs.setdefault(
+            "data", await self._prepare_select_options(prop, session_maker)
+        )
 
         return kwargs
 
@@ -287,16 +282,13 @@ class ModelConverterBase:
         field_widget_args: dict[str, Any],
         label: str | None = None,
         override: type[Field] | None = None,
-        form_ajax_refs: dict[str, QueryAjaxModelLoader] = {},
     ) -> UnboundField:
-        loader = form_ajax_refs.get(prop.key)
         kwargs = await self._prepare_kwargs(
             prop=prop,
             session_maker=session_maker,
             field_args=field_args,
             field_widget_args=field_widget_args,
-            label=label,
-            loader=loader,
+            label=label
         )
 
         if kwargs is None:
@@ -317,12 +309,6 @@ class ModelConverterBase:
 
         if one_or_many:
             return None
-        # TODO: useless
-        # if loader:
-        #     if multiple:
-        #         return AjaxSelectMultipleField(loader, **kwargs)
-        #     else:
-        #         return AjaxSelectField(loader, **kwargs)
 
         converter = self.get_converter(prop=prop)
         return converter(model=model, prop=prop, kwargs=kwargs)
@@ -611,7 +597,6 @@ async def get_model_form(
     form_widget_args: dict[str, dict[str, Any]] | None = None,
     form_class: type[Form] = Form,
     form_overrides: dict[str, type[Field]] | None = None,
-    form_ajax_refs: dict[str, QueryAjaxModelLoader] | None = None,
     form_converter: type[ModelConverterBase] = ModelConverter,
 ) -> type[Form]:
     type_name = model.__name__ + "Form"
@@ -621,7 +606,6 @@ async def get_model_form(
     form_widget_args = form_widget_args or {}
     column_labels = column_labels or {}
     form_overrides = form_overrides or {}
-    form_ajax_refs = form_ajax_refs or {}
 
     attributes = []
     names = only or mapper.attrs.keys()
@@ -649,8 +633,7 @@ async def get_model_form(
             field_args=field_args,
             field_widget_args=field_widget_args,
             label=label,
-            override=override,
-            form_ajax_refs=form_ajax_refs,
+            override=override
         )
         if field is not None:
             field_dict_key = WTFORMS_ATTRS.get(name, name)

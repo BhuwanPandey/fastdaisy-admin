@@ -34,9 +34,9 @@ from starlette.requests import Request
 from starlette.responses import StreamingResponse
 from wtforms import Field, Form
 from wtforms.fields.core import UnboundField
+from fastdaisy_admin.formatters import BASE_FORMATTERS
 from fastdaisy_admin._queries import Query
 from fastdaisy_admin._types import MODEL_ATTR, ColumnFilter, AdminAction
-from fastdaisy_admin.ajax import create_ajax_loader
 from fastdaisy_admin.exceptions import InvalidModelError
 from fastdaisy_admin.forms import ModelConverter, ModelConverterBase, get_model_form
 from fastdaisy_admin.helpers import (
@@ -48,6 +48,7 @@ from fastdaisy_admin.helpers import (
     secure_filename,
     slugify_class_name,
     stream_to_csv,
+    is_relationship
 )
 from fastdaisy_admin.filters import BooleanFilter,AllUniqueStringValuesFilter
 
@@ -167,8 +168,6 @@ class ModelView(BaseView):
     session_maker: ClassVar[Union[sessionmaker, "async_sessionmaker"]]
     is_async: ClassVar[bool] = False
     is_model: ClassVar[bool] = True
-    ajax_lookup_url: ClassVar[str] = ""
-    _has_link_column: dict[str, bool] = {}
 
     name_plural: ClassVar[str] = ""
     """Plural name of ModelView.
@@ -521,24 +520,6 @@ class ModelView(BaseView):
         ```
     """
 
-    form_ajax_refs: ClassVar[Dict[str, dict]] = {}
-    """Use Ajax for foreign key model loading.
-    Should contain dictionary, where key is field name and
-    value is a dictionary which configures Ajax lookups.
-
-    ???+example
-        ```python
-        class UserAdmin(ModelAdmin):
-            model = User
-            form_ajax_refs = {
-                'address': {
-                    'fields': ('street', 'zip_code'),
-                    'order_by': ('id',),
-                }
-            }
-        ```
-    """
-
     form_converter: ClassVar[Type[ModelConverterBase]] = ModelConverter
     """Custom form converter class.
     Useful if you want to add custom form conversion in addition to the defaults.
@@ -590,6 +571,24 @@ class ModelView(BaseView):
         ```
     """
 
+    column_type_formatters: ClassVar[Dict[Type, Callable]] = BASE_FORMATTERS
+    """Dictionary of value type formatters to be used in the list view.
+
+    By default, two types are formatted:
+
+        - None will be displayed as an empty string
+        - bool will be displayed as a checkmark if it is True otherwise as an X.
+
+    If you don't like the default behavior and don't want any type formatters applied,
+    just override this property with an empty dictionary:
+
+    ???+ example
+        ```python
+        class UserAdmin(ModelView):
+            model = User
+            column_type_formatters = dict()
+        ```
+    """
 
     def __init__(self) -> None:
         try:
@@ -605,6 +604,8 @@ class ModelView(BaseView):
 
         self.name = _attrs.get("name",prettify_class_name(self.model.__name__))
         self.name_plural = _attrs.get("name_plural",f"{self.name}s")
+
+        self._has_link_column: dict[str, bool] = {}
 
         if self.model.__str__ == object.__str__:
             def custom_repr(self_obj):
@@ -626,7 +627,8 @@ class ModelView(BaseView):
             ["column_export_list", "column_export_exclude_list"], _attrs
         )
 
-        self._prop_names = [attr.key for attr in self._mapper.attrs]
+        self.sorted_attrs = sorted(self._mapper.attrs, key=lambda attr: is_relationship(attr))
+        self._prop_names = [attr.key for attr in self.sorted_attrs if (hasattr(attr,"columns") and not bool(attr.columns[0].foreign_keys)) or is_relationship(attr)]
 
         self._delete_relations = [
             rel for rel in self._mapper.relationships if 'delete' in rel.cascade
@@ -650,14 +652,6 @@ class ModelView(BaseView):
             getattr(self.model, name) for name in self._list_relation_names
         ]
 
-        # self._details_prop_names = self.get_details_columns()
-        # self._details_relation_names = [
-        #     name for name in self._details_prop_names if name in self._relation_names
-        # ]
-        # self._details_relations = [
-        #     getattr(self.model, name) for name in self._details_relation_names
-        # ]
-
         self._list_formatters = self._build_column_pairs(self.column_formatters)
 
         self._form_prop_names = self.get_form_columns()
@@ -675,12 +669,6 @@ class ModelView(BaseView):
         self._sort_fields = [
             self._get_prop_name(attr) for attr in self.column_sortable_list
         ]
-
-        self._form_ajax_refs = {}
-        for name, options in self.form_ajax_refs.items():
-            self._form_ajax_refs[name] = create_ajax_loader(
-                model_admin=self, name=name, options=options
-            )
 
         self._refresh_form_rules_cache()
 
@@ -756,7 +744,12 @@ class ModelView(BaseView):
 
         return [(pk.name, False) for pk in self.pk_columns]
 
-
+    def _default_formatter(self, value: Any) -> Any:
+        if type(value) in self.column_type_formatters:
+            formatter = self.column_type_formatters[type(value)]
+            return formatter(value)
+        return value
+    
     def validate_page_number(self, number: Union[str, None], default: int) -> int:
         if not number:
             return default
@@ -963,7 +956,7 @@ class ModelView(BaseView):
         value = await self.get_prop_value(obj, prop)
         formatter = self._list_formatters.get(prop)
         formatted_value = (
-            formatter(obj, prop) if formatter else value
+            formatter(obj, prop) if formatter else self._default_formatter(value)
         )
         has_column_link = self.has_link(prop)
 
@@ -984,6 +977,7 @@ class ModelView(BaseView):
             return [self._get_prop_name(item) for item in include]
         elif exclude:
             exclude = [self._get_prop_name(item) for item in exclude]
+            print(self._prop_names,'data')
             return [prop for prop in self._prop_names if prop not in exclude]
         return defaults
 
@@ -1039,7 +1033,8 @@ class ModelView(BaseView):
             if isinstance(column,str) and column in self.model_columns:
                 col_type = type(self.model_columns.get(column))
             elif issubclass(column.class_,self.model) and column.name in self.model_columns:
-                col_type = type(column)
+                col_type = type(self.model_columns.get(column.name))
+            
             if col_type is Boolean:
                 filters.append(BooleanFilter(column))
             else:
@@ -1111,7 +1106,6 @@ class ModelView(BaseView):
             form_widget_args=self.form_widget_args,
             form_class=self.form_base_class,
             form_overrides=self.form_overrides,
-            form_ajax_refs=self._form_ajax_refs,
             form_converter=self.form_converter,
         )
 
