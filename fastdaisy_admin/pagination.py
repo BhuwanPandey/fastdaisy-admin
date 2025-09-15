@@ -10,7 +10,7 @@ from starlette.datastructures import URL
 class PageControl:
     number: int
     url: str
-    has_ellipsis:bool=False #"..."
+    has_ellipsis: bool = False  # "..."
 
 
 @dataclass
@@ -59,37 +59,36 @@ class Pagination:
 
     def add_pagination_urls(self, base_url: URL) -> None:
         # upto seven
-        if self.total_pages <=self.max_page_controls:
-            for p in range(1,self.total_pages+1):
+        if self.total_pages <= self.max_page_controls:
+            for p in range(1, self.total_pages + 1):
                 url = str(base_url.include_query_params(page=p))
                 page_control = PageControl(number=p, url=url)
                 self.page_controls.append(page_control)
         else:
-            first_range = range(1,6)
-            last_range = range(self.total_pages,self.total_pages-4,-1)
+            first_range = range(1, 6)
+            last_range = range(self.total_pages, self.total_pages - 4, -1)
             # first page
             self._add_page_control(base_url, 1)
             # last page
-            self._add_page_control(base_url,self.total_pages)
+            self._add_page_control(base_url, self.total_pages)
             if self.page in first_range[:-1]:
                 for p in first_range[1:]:
-                    self._add_page_control(base_url,p)
-                self._add_page_control(base_url,p+2,has_ellipsis=True)
+                    self._add_page_control(base_url, p)
+                self._add_page_control(base_url, p + 2, has_ellipsis=True)
             elif self.page in last_range:
                 for p in last_range[1:]:
-                    self._add_page_control(base_url,p)
-                self._add_page_control(base_url,p-1)
-                self._add_page_control(base_url,p-2,has_ellipsis=True)
+                    self._add_page_control(base_url, p)
+                self._add_page_control(base_url, p - 1)
+                self._add_page_control(base_url, p - 2, has_ellipsis=True)
             else:
-                self._add_page_control(base_url,self.page-2,has_ellipsis=True)
-                for p in range(self.page-1,self.page+2):
-                    self._add_page_control(base_url,p)
-                self._add_page_control(base_url,p+1,has_ellipsis=True)
+                self._add_page_control(base_url, self.page - 2, has_ellipsis=True)
+                for p in range(self.page - 1, self.page + 2):
+                    self._add_page_control(base_url, p)
+                self._add_page_control(base_url, p + 1, has_ellipsis=True)
 
         self.page_controls.sort(key=lambda p: p.number)
 
-    def _add_page_control(self, base_url: URL, page: int,has_ellipsis=False) -> None:
+    def _add_page_control(self, base_url: URL, page: int, has_ellipsis=False) -> None:
         url = str(base_url.include_query_params(page=page))
-        page_control = PageControl(number=page, url=url,has_ellipsis=has_ellipsis)
+        page_control = PageControl(number=page, url=url, has_ellipsis=has_ellipsis)
         self.page_controls.append(page_control)
-

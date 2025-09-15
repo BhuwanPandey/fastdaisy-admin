@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-import functools
-import inspect
-from typing import Any, Callable
-
 from starlette.requests import Request
-from starlette.responses import RedirectResponse, Response
+from starlette.responses import Response
 
 
 class AuthenticationBackend:
@@ -13,7 +9,6 @@ class AuthenticationBackend:
     You need to inherit this class and override the methods:
     `login`, `logout` and `authenticate`.
     """
-
 
     async def login(self, request: Request) -> bool:
         """Implement login logic here.
@@ -42,27 +37,3 @@ class AuthenticationBackend:
         otherwise a True/False is expected.
         """
         raise NotImplementedError()
-
-
-def login_required(func: Callable[..., Any]) -> Callable[..., Any]:
-    """Decorator to check authentication of Admin routes.
-    If no authentication backend is setup, this will do nothing.
-    """
-
-    @functools.wraps(func)
-    async def wrapper_decorator(*args: Any, **kwargs: Any) -> Any:
-        view, request = args[0], args[1]
-        admin = getattr(view, "_admin_ref", view)
-        auth_backend = getattr(admin, "authentication_backend", None)
-        if auth_backend is not None:
-            response = await auth_backend.authenticate(request)
-            if isinstance(response, Response):
-                return response
-            if not bool(response):
-                return RedirectResponse(request.url_for("admin:login"), status_code=302)
-
-        if inspect.iscoroutinefunction(func):
-            return await func(*args, **kwargs)
-        return func(*args, **kwargs)
-
-    return wrapper_decorator

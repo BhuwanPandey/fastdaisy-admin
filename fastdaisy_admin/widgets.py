@@ -3,7 +3,6 @@ from typing import Any
 
 from markupsafe import Markup
 from wtforms import Field, widgets
-from wtforms.widgets import html_params
 
 __all__ = [
     "DatePickerWidget",
@@ -31,6 +30,7 @@ class DateTimePickerWidget(widgets.TextInput):
         kwargs.setdefault("data-role", "datetimepicker")
         return super().__call__(field, **kwargs)
 
+
 class Select2TagsWidget(widgets.Select):
     def __call__(self, field: Field, **kwargs: Any) -> str:
         kwargs.setdefault("data-role", "select2-tags")
@@ -47,15 +47,11 @@ class FileInputWidget(widgets.FileInput):
     def __call__(self, field: Field, **kwargs: Any) -> str:
         if not field.flags.required:
             checkbox_id = f"{field.id}_checkbox"
-            checkbox_label = Markup(
-                f'<label class="form-check-label" for="{checkbox_id}">Clear</label>'
-            )
+            checkbox_label = Markup(f'<label class="form-check-label" for="{checkbox_id}">Clear</label>')
             checkbox_input = Markup(
                 f'<input class="form-check-input" type="checkbox" id="{checkbox_id}" name="{checkbox_id}">'  # noqa: E501
             )
-            checkbox = Markup(
-                f'<div class="form-check">{checkbox_input}{checkbox_label}</div>'
-            )
+            checkbox = Markup(f'<div class="form-check">{checkbox_input}{checkbox_label}</div>')
         else:
             checkbox = Markup()
 

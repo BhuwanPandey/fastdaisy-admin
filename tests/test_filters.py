@@ -1,22 +1,23 @@
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import pytest
+from bs4 import BeautifulSoup
 from httpx import AsyncClient
+from httpx._transports.asgi import ASGITransport
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import declarative_base, sessionmaker
 from starlette.applications import Starlette
-
+from sqlalchemy.ext.asyncio import async_sessionmaker
 from fastdaisy_admin import Admin, ModelView
 from tests.common import async_engine as engine
-from httpx._transports.asgi import ASGITransport
-from bs4 import BeautifulSoup
 
 Base = declarative_base()  # type: Any
-session_maker = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+session_maker = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
 app = Starlette()
-admin = Admin(app=app, secret_key='test',engine=engine)
+admin = Admin(app=app, secret_key="test", engine=engine)
 
 
 class User(Base):
@@ -44,16 +45,13 @@ class Office(Base):
 
 
 class UserAdmin(ModelView):
-    model=User
+    model = User
     column_list = [User.name, User.title]
-    column_filters = [
-        User.title,
-        User.is_admin
-    ]
+    column_filters = [User.title, User.is_admin]
 
 
 class AddressAdmin(ModelView):
-    model=Address
+    model = Address
     column_list = [Address.street]
     # This admin will NOT have filters defined
 
@@ -83,9 +81,7 @@ async def prepare_data(prepare_database: Any) -> AsyncGenerator[None, None]:
         await session.commit()
 
         # Create users with different boolean values and titles
-        user1 = User(
-            name="Admin User", title="Manager", is_admin=True, office_id=office1.id
-        )
+        user1 = User(name="Admin User", title="Manager", is_admin=True, office_id=office1.id)
         user2 = User(
             name="Regular User",
             title="Developer",
@@ -97,10 +93,9 @@ async def prepare_data(prepare_database: Any) -> AsyncGenerator[None, None]:
 
     yield
 
+
 @pytest.fixture
-async def client(
-    prepare_database: Any, prepare_data: Any
-) -> AsyncGenerator[AsyncClient, None]:
+async def client(prepare_database: Any, prepare_data: Any) -> AsyncGenerator[AsyncClient, None]:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as c:
         yield c
@@ -114,15 +109,15 @@ async def test_column_filters_sidebar_existence(client: AsyncClient) -> None:
     assert response.status_code == 200
 
     # Check for the filter sidebar container
-    soup = BeautifulSoup(response.text,'html.parser')
-    filter_field = soup.find('div',id='filter-sidebar')
+    soup = BeautifulSoup(response.text, "html.parser")
+    filter_field = soup.find("div", id="filter-sidebar")
     assert filter_field
 
     # Test view without filters (AddressAdmin)
     response = await client.get("/admin/address/list")
     assert response.status_code == 200
-    soup = BeautifulSoup(response.text,'html.parser')
-    filter_field = soup.find('div',id='filter-sidebar')
+    soup = BeautifulSoup(response.text, "html.parser")
+    filter_field = soup.find("div", id="filter-sidebar")
 
     # Verify filter sidebar does not appear
     assert not filter_field
@@ -135,8 +130,8 @@ async def test_filter_lookups(client: AsyncClient) -> None:
     assert response.status_code == 200
 
     # Check for the filter sidebar container
-    soup = BeautifulSoup(response.text,'html.parser')
-    filter_field = soup.find('div',id='filter-sidebar')
+    soup = BeautifulSoup(response.text, "html.parser")
+    filter_field = soup.find("div", id="filter-sidebar")
     assert filter_field
 
     # Check for the filter lookups
@@ -149,11 +144,11 @@ async def test_filter_lookups(client: AsyncClient) -> None:
 async def test_boolean_filter_functionality(client: AsyncClient) -> None:
     """Test that boolean filters correctly filter users
     based on their is_admin status."""
-#     # Test with no filter or 'all' filter - should show both users
+    #     # Test with no filter or 'all' filter - should show both users
     response = await client.get("/admin/user/list")
     assert response.status_code == 200
-    soup = BeautifulSoup(response.text,'html.parser')
-    td_tags = soup.find_all('td', class_='break-all')
+    soup = BeautifulSoup(response.text, "html.parser")
+    td_tags = soup.find_all("td", class_="break-all")
     td_texts = [td.get_text(strip=True) for td in td_tags]
 
     # Assert both users appear
@@ -163,17 +158,16 @@ async def test_boolean_filter_functionality(client: AsyncClient) -> None:
     # Test filtering for admin users (is_admin=true)
     response = await client.get("/admin/user/list?is_admin=true")
     assert response.status_code == 200
-    soup = BeautifulSoup(response.text,'html.parser')
-    td_tags = soup.find_all('td', class_='break-all')
+    soup = BeautifulSoup(response.text, "html.parser")
+    td_tags = soup.find_all("td", class_="break-all")
     td_texts = [td.get_text(strip=True) for td in td_tags]
     assert "Admin User" in td_texts
     assert "Regular User" not in td_texts
 
     # Test filtering for non-admin users (is_admin=false)
     response = await client.get("/admin/user/list?is_admin=false")
-    soup = BeautifulSoup(response.text,'html.parser')
-    td_tags = soup.find_all('td', class_='break-all')
+    soup = BeautifulSoup(response.text, "html.parser")
+    td_tags = soup.find_all("td", class_="break-all")
     td_texts = [td.get_text(strip=True) for td in td_tags]
     assert "Admin User" not in td_texts
     assert "Regular User" in td_texts
-

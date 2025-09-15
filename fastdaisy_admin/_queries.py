@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 
 class Query:
-    def __init__(self, model_view: "ModelView") -> None:
+    def __init__(self, model_view: ModelView) -> None:
         self.model_view = model_view
 
     def _get_to_many_stmt(self, relation: MODEL_PROPERTY, values: list[Any]) -> Select:
@@ -46,7 +46,7 @@ class Query:
                         target_pks,
                         object_identifier_values(value, target),
                     )
-                )
+                ) # type: ignore
             )
         return select(target).where(or_(*conditions))
 
@@ -67,8 +67,8 @@ class Query:
         # ensures we write the correct value to the fk fields
         pk_value = {pk: value for pk, value in zip(pks, values)}
 
-        for fk, pk in relation.local_remote_pairs:
-            setattr(obj, fk.name, pk_value[pk])
+        for fk, pk in relation.local_remote_pairs: # type: ignore
+            setattr(obj, fk.name, pk_value[pk]) # type: ignore
 
         return obj
 
@@ -101,9 +101,7 @@ class Query:
 
         return obj
 
-    async def _set_attributes_async(
-        self, session: AsyncSession, obj: Any, data: dict
-    ) -> Any:
+    async def _set_attributes_async(self, session: AsyncSession, obj: Any, data: dict) -> Any:
         for key, value in data.items():
             column = self.model_view._mapper.columns.get(key)
             relation = self.model_view._mapper.relationships.get(key)
@@ -138,19 +136,13 @@ class Query:
 
         with self.model_view.session_maker(expire_on_commit=False) as session:
             obj = session.execute(stmt).scalars().first()
-            anyio.from_thread.run(
-                self.model_view.on_model_change, data, obj, False, request
-            )
+            anyio.from_thread.run(self.model_view.on_model_change, data, obj, False, request)
             obj = self._set_attributes_sync(session, obj, data)
             session.commit()
-            anyio.from_thread.run(
-                self.model_view.after_model_change, data, obj, False, request
-            )
+            anyio.from_thread.run(self.model_view.after_model_change, data, obj, False, request)
             return obj
 
-    async def _update_async(
-        self, pk: Any, data: dict[str, Any], request: Request
-    ) -> Any:
+    async def _update_async(self, pk: Any, data: dict[str, Any], request: Request) -> Any:
         stmt = self.model_view._stmt_by_identifier(pk)
 
         for relation in self.model_view._form_relations:
@@ -165,8 +157,8 @@ class Query:
             await self.model_view.after_model_change(data, obj, False, request)
             return obj
 
-    def _get_delete_stmt(self, pk: str) -> Select:
-        stmt = select(self.model_view.model)
+    def _get_delete_stmt(self, pk: Any) -> Select:
+        stmt:Select = select(self.model_view.model)
         pks = get_primary_keys(self.model_view.model)
         values = object_identifier_values(pk, self.model_view.model)
         conditions = [pk == value for (pk, value) in zip(pks, values)]
@@ -174,7 +166,7 @@ class Query:
 
     def _delete_sync(self, pk: str, request: Request) -> None:
         with self.model_view.session_maker() as session:
-            if not isinstance(pk,self.model_view.model):
+            if not isinstance(pk, self.model_view.model):
                 obj = session.execute(self._get_delete_stmt(pk)).scalar_one_or_none()
             else:
                 obj = pk
@@ -183,9 +175,9 @@ class Query:
             session.commit()
             anyio.from_thread.run(self.model_view.after_model_delete, obj, request)
 
-    async def _delete_async(self, pk: str | ModelView, request: Request) -> None:
+    async def _delete_async(self, pk: Any | ModelView, request: Request) -> None:
         async with self.model_view.session_maker() as session:
-            if not isinstance(pk,self.model_view.model):
+            if not isinstance(pk, self.model_view.model):
                 result = await session.execute(self._get_delete_stmt(pk))
                 obj = result.scalars().first()
             else:
@@ -199,15 +191,11 @@ class Query:
         obj = self.model_view.model()
 
         with self.model_view.session_maker(expire_on_commit=False) as session:
-            anyio.from_thread.run(
-                self.model_view.on_model_change, data, obj, True, request
-            )
+            anyio.from_thread.run(self.model_view.on_model_change, data, obj, True, request)
             obj = self._set_attributes_sync(session, obj, data)
             session.add(obj)
             session.commit()
-            anyio.from_thread.run(
-                self.model_view.after_model_change, data, obj, True, request
-            )
+            anyio.from_thread.run(self.model_view.after_model_change, data, obj, True, request)
             return obj
 
     async def _insert_async(self, data: dict[str, Any], request: Request) -> Any:
@@ -238,3 +226,4 @@ class Query:
             return await self._update_async(pk, data, request)
         else:
             return await anyio.to_thread.run_sync(self._update_sync, pk, data, request)
+

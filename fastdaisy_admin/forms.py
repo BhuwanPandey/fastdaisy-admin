@@ -1,17 +1,16 @@
 """
 The converters are from Flask-Admin project.
 """
+
 from __future__ import annotations
 
 import enum
 import inspect
+from collections.abc import Callable, Sequence
 from typing import (
     Any,
-    Callable,
-    Sequence,
-    TypeVar,
-    Union,
     Protocol,
+    TypeVar,
     no_type_check,
 )
 
@@ -24,7 +23,7 @@ from sqlalchemy.orm import (
     sessionmaker,
 )
 from sqlalchemy.sql.elements import Label
-from sqlalchemy.sql.schema import Column
+from sqlalchemy.sql.elements import NamedColumn
 from wtforms import (
     BooleanField,
     DecimalField,
@@ -66,13 +65,10 @@ from fastdaisy_admin.helpers import (
 )
 
 
-
 class Validator(Protocol):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        ...  # pragma: no cover
+    def __init__(self, *args: Any, **kwargs: Any) -> None: ...  # pragma: no cover
 
-    def __call__(self, form: Form, field: Field) -> None:
-        ...  # pragma: no cover
+    def __call__(self, form: Form, field: Field) -> None: ...  # pragma: no cover
 
 
 class ConverterCallable(Protocol):
@@ -81,8 +77,7 @@ class ConverterCallable(Protocol):
         model: type,
         prop: MODEL_PROPERTY,
         kwargs: dict[str, Any],
-    ) -> UnboundField:
-        ...  # pragma: no cover
+    ) -> UnboundField: ...  # pragma: no cover
 
 
 T_CC = TypeVar("T_CC", bound=ConverterCallable)
@@ -130,14 +125,13 @@ class ModelConverterBase:
         if not isinstance(prop, (RelationshipProperty, ColumnProperty)):
             return None
 
-        kwargs: Union[dict, None]
+        kwargs: dict | None
         kwargs = field_args.copy()
         widget_args = field_widget_args.copy()
         widget_args.setdefault(
-            "class", 
-            "input w-full focus:outline-0 transition-all input-sm input-bordered focus:outline-offset-0"
+            "class", "input w-full focus:outline-0 transition-all input-sm input-bordered focus:outline-offset-0"
         )
-        
+
         kwargs.setdefault("label", label)
         kwargs.setdefault("validators", [])
         kwargs.setdefault("filters", [])
@@ -146,23 +140,17 @@ class ModelConverterBase:
         kwargs.setdefault("render_kw", widget_args)
 
         if isinstance(prop, ColumnProperty):
-            kwargs = self._prepare_column(
-                prop=prop, kwargs=kwargs
-            )
+            kwargs = self._prepare_column(prop=prop, kwargs=kwargs)
         else:
-            kwargs = await self._prepare_relationship(
-                prop=prop, session_maker=session_maker, kwargs=kwargs
-            )
+            kwargs = await self._prepare_relationship(prop=prop, session_maker=session_maker, kwargs=kwargs)
 
         return kwargs
 
-    def _prepare_column(
-        self, prop: ColumnProperty, kwargs: dict
-    ) -> Union[dict, None]:
+    def _prepare_column(self, prop: ColumnProperty, kwargs: dict) -> dict | None:
         assert len(prop.columns) == 1, "Multiple-column properties not supported"
         column = prop.columns[0]
 
-        if (column.primary_key or column.foreign_keys):
+        if column.primary_key or column.foreign_keys:
             return None
 
         default = getattr(column, "default", None) or kwargs.get("default")
@@ -174,11 +162,7 @@ class ModelConverterBase:
 
             if callable_default is not None:
                 # ColumnDefault(val).arg can be also a plain value
-                default = (
-                    callable_default(None)
-                    if callable(callable_default)
-                    else callable_default
-                )
+                default = callable_default(None) if callable(callable_default) else callable_default
 
         kwargs["default"] = default
         optional_types = (Boolean,)
@@ -197,22 +181,17 @@ class ModelConverterBase:
         return kwargs
 
     async def _prepare_relationship(
-        self,
-        prop: RelationshipProperty,
-        kwargs: dict,
-        session_maker: sessionmaker
+        self, prop: RelationshipProperty, kwargs: dict, session_maker: sessionmaker
     ) -> dict:
         nullable = True
-        for pair in prop.local_remote_pairs:
-            if not pair[0].nullable:
-                nullable = False
+        if not prop.local_remote_pairs is None:
+            for pair in prop.local_remote_pairs:
+                if not pair[0].nullable:
+                    nullable = False
 
         kwargs["allow_blank"] = nullable
 
-        
-        kwargs.setdefault(
-            "data", await self._prepare_select_options(prop, session_maker)
-        )
+        kwargs.setdefault("data", await self._prepare_select_options(prop, session_maker))
 
         return kwargs
 
@@ -227,17 +206,11 @@ class ModelConverterBase:
         if is_async_session_maker(session_maker):
             async with session_maker() as session:
                 objects = await session.execute(stmt)
-                return [
-                    (str(self._get_identifier_value(obj)), str(obj))
-                    for obj in objects.scalars().unique().all()
-                ]
+                return [(str(self._get_identifier_value(obj)), str(obj)) for obj in objects.scalars().unique().all()]
         else:
             with session_maker() as session:
                 objects = await anyio.to_thread.run_sync(session.execute, stmt)
-                return [
-                    (str(self._get_identifier_value(obj)), str(obj))
-                    for obj in objects.scalars().unique().all()
-                ]
+                return [(str(self._get_identifier_value(obj)), str(obj)) for obj in objects.scalars().unique().all()]
 
     def get_converter(self, prop: MODEL_PROPERTY) -> ConverterCallable:
         # TODO:
@@ -288,7 +261,7 @@ class ModelConverterBase:
             session_maker=session_maker,
             field_args=field_args,
             field_widget_args=field_widget_args,
-            label=label
+            label=label,
         )
 
         if kwargs is None:
@@ -302,10 +275,7 @@ class ModelConverterBase:
         #     and prop.direction.name in ("ONETOMANY", "MANYTOMANY")
         #     and prop.uselist
         # )
-        one_or_many = (
-            is_relationship(prop)
-            and prop.direction.name in ("ONETOMANY", "MANYTOMANY")
-        )
+        one_or_many = is_relationship(prop) and prop.direction.name in ("ONETOMANY", "MANYTOMANY")
 
         if one_or_many:
             return None
@@ -318,37 +288,31 @@ class ModelConverterBase:
 
 
 class ModelConverter(ModelConverterBase):
-    
     @staticmethod
     def _string_common(prop: ColumnProperty) -> list[Validator]:
         li = []
-        column: Column = prop.columns[0]
+        column = prop.columns[0]
+        # TODO: For mypy
         if isinstance(column.type.length, int) and column.type.length:
             li.append(validators.Length(max=column.type.length))
         return li
 
     @converts("String", "CHAR")  # includes Unicode
-    def conv_string(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_string(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         extra_validators = self._string_common(prop)
         kwargs.setdefault("validators", [])
         kwargs["validators"].extend(extra_validators)
         return StringField(**kwargs)
 
     @converts("Text", "LargeBinary", "Binary")  # includes UnicodeText
-    def conv_text(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_text(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         kwargs.setdefault("validators", [])
         extra_validators = self._string_common(prop)
         kwargs["validators"].extend(extra_validators)
         return TextAreaField(**kwargs)
 
     @converts("Boolean", "dialects.mssql.base.BIT")
-    def conv_boolean(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_boolean(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         if not prop.columns[0].nullable:
             kwargs.setdefault("render_kw", {})
             kwargs["render_kw"]["class"] = "toggle-sm border-gray-500 toggle"
@@ -360,30 +324,21 @@ class ModelConverter(ModelConverterBase):
         kwargs["coerce"] = lambda v: str(v) == "True"
         kwargs["blank_text"] = "UnKnown"
         return SelectField(**kwargs)
-    
 
     @converts("Date")
-    def conv_date(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_date(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         return DateField(**kwargs)
 
     @converts("Time")
-    def conv_time(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_time(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         return TimeField(**kwargs)
 
     @converts("DateTime")
-    def conv_datetime(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_datetime(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         return DateTimeField(**kwargs)
 
     @converts("Enum")
-    def conv_enum(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_enum(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         available_choices = [(e, e) for e in prop.columns[0].type.enums]
         accepted_values = [choice[0] for choice in available_choices]
 
@@ -402,29 +357,21 @@ class ModelConverter(ModelConverterBase):
         return SelectField(**kwargs)
 
     @converts("Integer")  # includes BigInteger and SmallInteger
-    def conv_integer(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_integer(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         return IntegerField(**kwargs)
 
     @converts("Numeric")  # includes DECIMAL, Float/FLOAT, REAL, and DOUBLE
-    def conv_decimal(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_decimal(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         # override default decimal places limit, use database defaults instead
         kwargs.setdefault("places", None)
         return DecimalField(**kwargs)
 
     @converts("JSON", "JSONB")
-    def conv_json(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_json(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         return JSONField(**kwargs)
 
     @converts("Interval")
-    def conv_interval(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_interval(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         kwargs["render_kw"]["placeholder"] = "Like: 1 day 1:25:33.652"
         return IntervalField(**kwargs)
 
@@ -433,9 +380,7 @@ class ModelConverter(ModelConverterBase):
         "sqlalchemy.dialects.postgresql.types.INET",
         "sqlalchemy_utils.types.ip_address.IPAddressType",
     )
-    def conv_ip_address(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_ip_address(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         kwargs.setdefault("validators", [])
         kwargs["validators"].append(validators.IPAddress(ipv4=True, ipv6=True))
         return StringField(**kwargs)
@@ -444,9 +389,7 @@ class ModelConverter(ModelConverterBase):
         "sqlalchemy.dialects.postgresql.base.MACADDR",
         "sqlalchemy.dialects.postgresql.types.MACADDR",
     )
-    def conv_mac_address(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_mac_address(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         kwargs.setdefault("validators", [])
         kwargs["validators"].append(validators.MacAddress())
         return StringField(**kwargs)
@@ -457,76 +400,54 @@ class ModelConverter(ModelConverterBase):
         "sqlalchemy.sql.sqltypes.Uuid",
         "sqlalchemy_utils.types.uuid.UUIDType",
     )
-    def conv_uuid(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_uuid(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         kwargs.setdefault("validators", [])
         kwargs["validators"].append(validators.UUID())
         return StringField(**kwargs)
 
-    @converts(
-        "sqlalchemy.dialects.postgresql.base.ARRAY", "sqlalchemy.sql.sqltypes.ARRAY"
-    )
-    def conv_ARRAY(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    @converts("sqlalchemy.dialects.postgresql.base.ARRAY", "sqlalchemy.sql.sqltypes.ARRAY")
+    def conv_ARRAY(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         return Select2TagsField(**kwargs)
 
     @converts("sqlalchemy_utils.types.email.EmailType")
-    def conv_email(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_email(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         kwargs.setdefault("validators", [])
         kwargs["validators"].append(validators.Email())
         return StringField(**kwargs)
 
     @converts("sqlalchemy_utils.types.url.URLType")
-    def conv_url(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_url(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         kwargs.setdefault("validators", [])
         kwargs["validators"].append(validators.URL())
         return StringField(**kwargs)
 
     @converts("sqlalchemy_utils.types.currency.CurrencyType")
-    def conv_currency(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_currency(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         kwargs.setdefault("validators", [])
         kwargs["validators"].append(CurrencyValidator())
         return StringField(**kwargs)
 
     @converts("sqlalchemy_utils.types.timezone.TimezoneType")
-    def conv_timezone(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_timezone(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         kwargs.setdefault("validators", [])
-        kwargs["validators"].append(
-            TimezoneValidator(coerce_function=prop.columns[0].type._coerce)
-        )
+        kwargs["validators"].append(TimezoneValidator(coerce_function=prop.columns[0].type._coerce))
         return StringField(**kwargs)
 
     @converts("sqlalchemy_utils.types.phone_number.PhoneNumberType")
-    def conv_phone_number(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_phone_number(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         kwargs.setdefault("validators", [])
         kwargs["validators"].append(PhoneNumberValidator())
         return StringField(**kwargs)
 
     @converts("sqlalchemy_utils.types.color.ColorType")
-    def conv_color(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_color(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         kwargs.setdefault("validators", [])
         kwargs["validators"].append(ColorValidator())
         return StringField(**kwargs)
 
     @converts("sqlalchemy_utils.types.choice.ChoiceType")
     @no_type_check
-    def convert_choice_type(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def convert_choice_type(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         available_choices = []
         column = prop.columns[0]
 
@@ -535,10 +456,7 @@ class ModelConverter(ModelConverterBase):
         else:
             available_choices = column.type.choices
 
-        accepted_values = [
-            choice[0] if isinstance(choice, tuple) else choice.value
-            for choice in available_choices
-        ]
+        accepted_values = [choice[0] if isinstance(choice, tuple) else choice.value for choice in available_choices]
 
         if column.nullable:
             kwargs["allow_blank"] = column.nullable
@@ -554,36 +472,26 @@ class ModelConverter(ModelConverterBase):
         return SelectField(**kwargs)
 
     @converts("fastapi_storages.integrations.sqlalchemy.FileType")
-    def conv_file(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_file(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         return FileField(**kwargs)
 
     @converts("fastapi_storages.integrations.sqlalchemy.ImageType")
-    def conv_image(
-        self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_image(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         return FileField(**kwargs)
 
     @converts("ONETOONE")
-    def conv_one_to_one(
-        self, model: type, prop: RelationshipProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_one_to_one(self, model: type, prop: RelationshipProperty, kwargs: dict[str, Any]) -> UnboundField:
         kwargs["allow_blank"] = True
         return QuerySelectField(**kwargs)
 
     @converts("MANYTOONE")
-    def conv_many_to_one(
-        self, model: type, prop: RelationshipProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_many_to_one(self, model: type, prop: RelationshipProperty, kwargs: dict[str, Any]) -> UnboundField:
         kwargs["render_kw"]["class"] = "select !select-bordered select-sm w-full"
         kwargs["blank_text"] = "---------"
         return QuerySelectField(**kwargs)
 
     @converts("MANYTOMANY", "ONETOMANY")
-    def conv_many_to_many(
-        self, model: type, prop: RelationshipProperty, kwargs: dict[str, Any]
-    ) -> UnboundField:
+    def conv_many_to_many(self, model: type, prop: RelationshipProperty, kwargs: dict[str, Any]) -> UnboundField:
         return QuerySelectMultipleField(**kwargs)
 
 
@@ -601,7 +509,7 @@ async def get_model_form(
 ) -> type[Form]:
     type_name = model.__name__ + "Form"
     converter = form_converter()
-    mapper = sqlalchemy_inspect(model)
+    mapper = sqlalchemy_inspect(model) # type: ignore
     form_args = form_args or {}
     form_widget_args = form_widget_args or {}
     column_labels = column_labels or {}
@@ -611,9 +519,7 @@ async def get_model_form(
     names = only or mapper.attrs.keys()
     for name in names:
         attr = mapper.attrs[name]
-        if (exclude and name in exclude) or (
-            isinstance(attr, ColumnProperty) and isinstance(attr.expression, Label)
-        ):
+        if (exclude and name in exclude) or (isinstance(attr, ColumnProperty) and isinstance(attr.expression, Label)):
             continue
         attributes.append((name, attr))
 
@@ -633,9 +539,9 @@ async def get_model_form(
             field_args=field_args,
             field_widget_args=field_widget_args,
             label=label,
-            override=override
+            override=override,
         )
         if field is not None:
             field_dict_key = WTFORMS_ATTRS.get(name, name)
-            field_dict[field_dict_key] = field    
+            field_dict[field_dict_key] = field
     return type(type_name, (form_class,), field_dict)

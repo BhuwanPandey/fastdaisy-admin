@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import operator
-from typing import Any, Callable, Generator
+from collections.abc import Callable, Generator
+from typing import Any
 
 from wtforms import Form, ValidationError, fields, widgets
 
@@ -174,11 +175,7 @@ class QuerySelectField(fields.SelectFieldBase):
             yield ("__None", self.blank_text, self.data is None, {})
 
         if self.data:
-            primary_key = (
-                self.data
-                if isinstance(self.data, str)
-                else str(get_object_identifier(self.data))
-            )
+            primary_key = self.data if isinstance(self.data, str) else str(get_object_identifier(self.data))
         else:
             primary_key = None
 
@@ -188,7 +185,7 @@ class QuerySelectField(fields.SelectFieldBase):
     def process_formdata(self, valuelist: list[str]) -> None:
         if valuelist:
             if self.allow_blank and valuelist[0] == "__None":
-                self.data = None
+                self.data = None # type: ignore
             else:
                 self._data = None
                 self._formdata = valuelist[0]
@@ -233,9 +230,7 @@ class QuerySelectMultipleField(QuerySelectField):
         if kwargs.get("allow_blank", False):
             import warnings
 
-            warnings.warn(
-                "allow_blank=True does not do anything for QuerySelectMultipleField."
-            )
+            warnings.warn("allow_blank=True does not do anything for QuerySelectMultipleField.")
         self._invalid_formdata = False
         self._formdata: list[str] | None = None
         self._data: tuple | None = None
@@ -283,11 +278,11 @@ class QuerySelectMultipleField(QuerySelectField):
                 if v not in pk_list:  # pragma: no cover
                     raise ValidationError(self.gettext("Not a valid choice"))
 
+
 class Select2TagsField(fields.SelectField):
     widget = admin_widgets.Select2TagsWidget()
 
-    def pre_validate(self, form: Form) -> None:
-        ...
+    def pre_validate(self, form: Form) -> None: ...
 
     def process_formdata(self, valuelist: list) -> None:
         self.data = valuelist

@@ -6,35 +6,25 @@ import os
 import re
 import unicodedata
 from abc import ABC, abstractmethod
+from collections.abc import AsyncGenerator, Callable, Generator
 from datetime import timedelta
-from typing import (
-    Any,
-    AsyncGenerator,
-    Callable,
-    Generator,
-    TypeVar,
-    Literal
-)
+from typing import Any, Literal, TypeVar
 
 from sqlalchemy import Column, inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import RelationshipProperty, sessionmaker
 from starlette.requests import Request
-from fastdaisy_admin._types import MODEL_PROPERTY
 from wtforms import (
-    BooleanField,
-    DecimalField,
+    DateTimeField,
     Field,
-    Form,
+    FileField,
     IntegerField,
+    SelectField,
     StringField,
     TextAreaField,
-    TimeField,
-    DateTimeField,
-    SelectField,
-    FileField
 )
-
+from sqlalchemy.ext.asyncio import async_sessionmaker
+from fastdaisy_admin._types import MODEL_PROPERTY
 
 T = TypeVar("T")
 MessageLevel = Literal["success", "info", "warning", "error"]
@@ -106,14 +96,15 @@ def slugify_class_name(name: str) -> str:
 def slugify_action_name(name: str) -> str:
     if not re.search(r"^[A-Za-z0-9 \-_]+$", name):
         raise ValueError(
-            "name must be non-empty and contain only allowed characters"
-            " - use `label` for more expressive names"
+            "name must be non-empty and contain only allowed characters - use `label` for more expressive names"
         )
 
     return re.sub(r"[_ ]", "-", name).lower()
 
+
 def shorten_name(name):
     return name[:20] if len(name) > 20 else name
+
 
 def secure_filename(filename: str) -> str:
     """Ported from Werkzeug.
@@ -131,18 +122,12 @@ def secure_filename(filename: str) -> str:
     for sep in os.path.sep, os.path.altsep:
         if sep:
             filename = filename.replace(sep, " ")
-    filename = str(_filename_ascii_strip_re.sub("", "_".join(filename.split()))).strip(
-        "._"
-    )
+    filename = str(_filename_ascii_strip_re.sub("", "_".join(filename.split()))).strip("._")
 
     # on nt a couple of special files are present in each folder.  We
     # have to ensure that the target file is not such a filename.  In
     # this case we prepend an underline
-    if (
-        os.name == "nt"
-        and filename
-        and filename.split(".")[0].upper() in _windows_device_files
-    ):
+    if os.name == "nt" and filename and filename.split(".")[0].upper() in _windows_device_files:
         filename = f"_{filename}"  # pragma: no cover
 
     return filename
@@ -272,18 +257,15 @@ def get_column_python_type(column: Column) -> type:
 def is_relationship(prop: MODEL_PROPERTY) -> bool:
     return isinstance(prop, RelationshipProperty)
 
-def get_pk(obj,model_view):
+
+def get_pk(obj, model_view):
     pks = get_primary_keys(model_view.model)
     pk_col = pks[0]
-    return getattr(obj,pk_col.key)
+    return getattr(obj, pk_col.key)
 
 
 def parse_interval(value: str) -> timedelta | None:
-    match = (
-        standard_duration_re.match(value)
-        or iso8601_duration_re.match(value)
-        or postgres_interval_re.match(value)
-    )
+    match = standard_duration_re.match(value) or iso8601_duration_re.match(value) or postgres_interval_re.match(value)
 
     if not match:
         return None
@@ -321,25 +303,20 @@ def choice_type_coerce_factory(type_: Any) -> Callable[[Any], Any]:
         if value is None:
             return None
 
-        return (
-            getattr(value, key)
-            if isinstance(value, choice_cls)
-            else type_.python_type(value)
-        )
+        return getattr(value, key) if isinstance(value, choice_cls) else type_.python_type(value)
 
     return choice_coerce
 
 
-def is_async_session_maker(session_maker: sessionmaker) -> bool:
+def is_async_session_maker(session_maker: sessionmaker| async_sessionmaker) -> bool:
     return AsyncSession in session_maker.class_.__mro__
 
 
-
-def add_message(request:Request,message:str,level:MessageLevel="info"):
+def add_message(request: Request, message: str, level: MessageLevel = "info"):
     # messages = request.session.pop("_messages", [])
     # Only one message at a time
     messages = []
-    messages.append(({"level": level,"message": message}))
+    messages.append({"level": level, "message": message})
     request.session["_messages"] = messages
 
 
@@ -347,16 +324,24 @@ def get_messages(request: Request):
     messages = request.session.pop("_messages", [])
     return messages
 
-def apply_class(field:Field):
-    if type(field) in (StringField,IntegerField):
-        return field(class_="input w-full focus:outline-0 transition-all input-sm input-bordered focus:outline-offset-0")
+
+def apply_class(field: Field):
+    if type(field) in (StringField, IntegerField):
+        return field(
+            class_="input w-full focus:outline-0 transition-all input-sm input-bordered focus:outline-offset-0"
+        )
     elif type(field) is TextAreaField:
-        return field(class_="textarea textarea-bordered w-full min-w-24 focus:outline-0 transition-all focus:outline-offset-0")
-    elif isinstance(field,DateTimeField):
-        return field(class_="input mb-2 w-full min-w-24 max-w-96 focus:outline-0 transition-all input-sm input-bordered focus:outline-offset-0")
+        return field(
+            class_="textarea textarea-bordered w-full min-w-24 focus:outline-0 transition-all focus:outline-offset-0"
+        )
+    elif isinstance(field, DateTimeField):
+        return field(
+            class_="input mb-2 w-full min-w-24 max-w-96 focus:outline-0 transition-all input-sm input-bordered focus:outline-offset-0"
+        )
     elif type(field) is SelectField:
         return field(class_="select !select-bordered select-sm w-full")
-    elif isinstance(field,FileField):
-        return field(class_="file-input file-input-sm w-full max-w-xs focus:outline-0 transition-all focus:outline-offset-0")
+    elif isinstance(field, FileField):
+        return field(
+            class_="file-input file-input-sm w-full max-w-xs focus:outline-0 transition-all focus:outline-offset-0"
+        )
     return field
-

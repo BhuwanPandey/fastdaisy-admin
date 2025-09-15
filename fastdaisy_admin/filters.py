@@ -1,7 +1,7 @@
 import re
-from typing import Any, Callable, List, Optional, Tuple
+from collections.abc import Callable
+from typing import Any
 
-from sqlalchemy import Integer
 from sqlalchemy.sql.expression import Select, select
 from starlette.requests import Request
 
@@ -45,28 +45,26 @@ class BooleanFilter:
     def __init__(
         self,
         column: MODEL_ATTR,
-        title: Optional[str] = None,
-        parameter_name: Optional[str] = None,
+        title: str | None = None,
+        parameter_name: str | None = None,
     ):
         self.column = column
         self.title = title or get_title(column)
         self.parameter_name = parameter_name or get_parameter_name(column)
 
-    async def lookups(
-        self, request: Request, model: Any, run_query: Callable[[Select], Any]
-    ) -> List[Tuple[str, str]]:
+    async def lookups(self, request: Request, model: Any, run_query: Callable[[Select], Any]) -> list[tuple[str, bool, str]]:
         param = request.query_params.get(self.parameter_name)
         lookup = []
-        for display in ['All','Yes','No']:
-            if display == 'All':
+        for display in ["All", "Yes", "No"]:
+            if display == "All":
                 query = "?"
                 is_selected = param is None
-                lookup.append((query,is_selected,display))
+                lookup.append((query, is_selected, display))
             else:
-                val = str(display == 'Yes').lower()
-                query=f"?{self.parameter_name}={val}"
+                val = str(display == "Yes").lower()
+                query = f"?{self.parameter_name}={val}"
                 is_selected = val == param
-                lookup.append((query,is_selected,display))
+                lookup.append((query, is_selected, display))
         return lookup
 
     async def get_filtered_query(self, query: Select, value: Any, model: Any) -> Select:
@@ -77,35 +75,32 @@ class BooleanFilter:
             return query.filter(column_obj.is_(False))
         else:
             return query
-    
-    def get_query_values(self,request):
-        return request.query_params.get(self.parameter_name)
 
+    def get_query_values(self, request):
+        return request.query_params.get(self.parameter_name)
 
 
 class AllUniqueStringValuesFilter:
     def __init__(
         self,
         column: MODEL_ATTR,
-        title: Optional[str] = None,
-        parameter_name: Optional[str] = None,
+        title: str | None = None,
+        parameter_name: str | None = None,
     ):
         self.column = column
         self.title = title or get_title(column)
         self.parameter_name = parameter_name or get_parameter_name(column)
 
-    async def lookups(
-        self, request: Request, model: Any, run_query: Callable[[Select], Any]
-    ) -> List[Tuple[str, str]]:
+    async def lookups(self, request: Request, model: Any, run_query: Callable[[Select], Any]) -> list[tuple[str, bool, str]]:
         column_obj = get_column_obj(self.column, model)
         param = request.query_params.getlist(self.parameter_name)
         selected = not param
         result = await run_query(select(column_obj).distinct())
-        lookup = [("?", selected,"All")]
+        lookup = [("?", selected, "All")]
         for val in result:
             is_selected = val[0] in param
             query = f"?{self.parameter_name}={val[0]}"
-            lookup.append((query,is_selected,val[0]))
+            lookup.append((query, is_selected, val[0]))
         return lookup
 
     async def get_filtered_query(self, query: Select, value: Any, model: Any) -> Select:
@@ -116,6 +111,5 @@ class AllUniqueStringValuesFilter:
         stmt = query.filter(column_obj.in_(value))
         return stmt
 
-    def get_query_values(self,request):
+    def get_query_values(self, request):
         return request.query_params.getlist(self.parameter_name)
-

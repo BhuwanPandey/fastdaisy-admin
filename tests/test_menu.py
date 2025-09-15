@@ -1,14 +1,13 @@
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import declarative_base
 from starlette.requests import Request
-
 from fastdaisy_admin import ModelView
 from fastdaisy_admin._menu import CategoryMenu, ItemMenu, Menu, ViewMenu
 
-Base = declarative_base()  # type: ignore
+Base = declarative_base() # type: ignore
 
 
-class User(Base):
+class User(Base): # type: ignore
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
@@ -16,7 +15,7 @@ class User(Base):
 
 
 class UserAdmin(ModelView):
-    model=User
+    model = User
 
 
 request = Request({"type": "http"})
@@ -79,14 +78,14 @@ def test_view_menu():
 
 
 def test_menu_and_divider():
-    item_menu = ItemMenu(name="item",divider='Apps')
+    item_menu = ItemMenu(name="item", divider="Apps")
     child_menu = ItemMenu(name="child")
     item_menu.add_child(child_menu)
 
     menu = Menu()
     menu.add(item_menu)
 
-    item_menu = ItemMenu(name="item",divider='Apps')
+    item_menu = ItemMenu(name="item", divider="Apps")
     another_child = ItemMenu(name="another_child")
     item_menu.add_child(another_child)
 
@@ -94,4 +93,4 @@ def test_menu_and_divider():
 
     assert len(menu.items) == 1
     assert len(menu.items.pop().children) == 2
-    assert len(menu.divider['Apps']) == 1
+    assert len(menu.divider["Apps"]) == 1

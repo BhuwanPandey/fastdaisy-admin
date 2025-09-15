@@ -1,13 +1,16 @@
-from typing import Any, Callable, Protocol, runtime_checkable
+from collections.abc import Callable
+from typing import Any, Protocol, runtime_checkable
 
-from sqlalchemy.engine import Engine
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.engine import Engine,Connection
+from sqlalchemy.ext.asyncio import AsyncEngine,AsyncConnection
 from sqlalchemy.orm import ColumnProperty, InstrumentedAttribute, RelationshipProperty
 from sqlalchemy.sql.expression import Select
 from starlette.requests import Request
 
 MODEL_PROPERTY = ColumnProperty | RelationshipProperty
-ENGINE_TYPE = Engine | AsyncEngine
+ENGINE_TYPE = Engine | AsyncEngine | Connection | AsyncConnection
+SYNC_ENGINE_TYPE = Engine | Connection 
+ASYNC_ENGINE_TYPE = AsyncEngine | AsyncConnection
 MODEL_ATTR = str | InstrumentedAttribute
 
 
@@ -18,11 +21,9 @@ class ColumnFilter(Protocol):
 
     async def lookups(
         self, request: Request, model: Any, run_query: Callable[[Select], Any]
-    ) -> list[tuple[str, str]]:
-        ...
+    ) -> list[tuple[str, str]]: ...
 
-    async def get_filtered_query(self, query: Select, value: Any, model: Any) -> Select:
-        ...
+    async def get_filtered_query(self, query: Select, value: Any, model: Any) -> Select: ...
 
 
 @runtime_checkable
@@ -33,6 +34,4 @@ class AdminAction(Protocol):
     _include_in_schema: bool
     _add_in_list: bool
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        ...
-
+    def __call__(self, *args: Any, **kwargs: Any) -> Any: ...

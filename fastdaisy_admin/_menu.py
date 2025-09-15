@@ -10,14 +10,14 @@ if TYPE_CHECKING:
 
 
 class ItemMenu:
-    def __init__(self, name: str,divider:str | None = None, icon: str | None = None) -> None:
+    def __init__(self, name: str, divider: str | None = None, icon: str | None = None) -> None:
         self.name = name
         self.divider = divider
         self.icon = icon
-        self.parent: "ItemMenu" | None = None
-        self.children: list["ItemMenu"] = []
+        self.parent: ItemMenu | None = None
+        self.children: list[ItemMenu] = []
 
-    def add_child(self, item: "ItemMenu") -> None:
+    def add_child(self, item: ItemMenu) -> None:
         item.parent = self
         self.children.append(item)
 
@@ -44,9 +44,7 @@ class ItemMenu:
 
 class CategoryMenu(ItemMenu):
     def is_active(self, request: Request) -> bool:
-        return any(
-            c.is_active(request) and c.is_accessible(request) for c in self.children
-        )
+        return any(c.is_active(request) and c.is_accessible(request) for c in self.children)
 
     @property
     def type_(self) -> str:
@@ -56,12 +54,12 @@ class CategoryMenu(ItemMenu):
 class ViewMenu(ItemMenu):
     def __init__(
         self,
-        view: "BaseView" | "ModelView",
+        view: BaseView | ModelView,
         name: str,
-        divider:str | None = None,
+        divider: str | None = None,
         icon: str | None = None,
     ) -> None:
-        super().__init__(name=name, icon=icon,divider=divider)
+        super().__init__(name=name, icon=icon, divider=divider)
         self.view = view
 
     def is_visible(self, request: Request) -> bool:
@@ -89,7 +87,7 @@ class ViewMenu(ItemMenu):
 
 class Menu:
     def __init__(self) -> None:
-        self.divider = dict()
+        self.divider:dict[str|None, list[ItemMenu]] = {}
         self.items: list[ItemMenu] = []
 
     def add(self, item: ItemMenu) -> None:
@@ -99,6 +97,7 @@ class Menu:
                 root.children.append(*item.children)
                 return
         self.items.append(item)
+        # TODO: Handle None on self.divider
         if item.divider not in self.divider:
             self.divider[item.divider] = [item]
         else:

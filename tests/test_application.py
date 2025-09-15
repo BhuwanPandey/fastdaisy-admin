@@ -1,33 +1,31 @@
-from typing import Generator
+from collections.abc import Generator
 
 import pytest
+from bs4 import BeautifulSoup
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import declarative_base
 from starlette.applications import Starlette
 from starlette.datastructures import MutableHeaders
 from starlette.middleware import Middleware
+from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response
 from starlette.testclient import TestClient
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from fastdaisy_admin import Admin, ModelView
 from tests.common import sync_engine as engine
-from bs4 import BeautifulSoup
-from starlette.middleware.sessions import SessionMiddleware
-from starlette.responses import JSONResponse
-
 
 Base = declarative_base()
 
 
-class DataModel(Base):
+class DataModel(Base): # type: ignore
     __tablename__ = "datamodel"
     id = Column(Integer, primary_key=True)
     data = Column(String)
 
 
-class User(Base):
+class User(Base): # type: ignore
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
@@ -43,17 +41,18 @@ def prepare_database() -> Generator[None, None, None]:
 
 def test_application_title() -> None:
     app = Starlette()
-    Admin(app=app, secret_key='test',engine=engine)
+    Admin(app=app, secret_key="test", engine=engine)
 
     with TestClient(app) as client:
         response = client.get("/admin")
 
-    soup = BeautifulSoup(response.text,'html.parser')
+    soup = BeautifulSoup(response.text, "html.parser")
     assert response.status_code == 200
-    div = soup.find('div', class_='w-full')
-    assert div and div.text.strip() == 'Admin'
-    title = soup.find('title')
-    assert title and title.text.strip() == 'Admin'
+    div = soup.find("div", class_="w-full")
+    assert div and div.text.strip() == "Admin"
+    title = soup.find("title")
+    assert title and title.text.strip() == "Admin"
+
 
 def test_middlewares() -> None:
     class CorrelationIdMiddleware:
@@ -72,7 +71,7 @@ def test_middlewares() -> None:
     app = Starlette()
     Admin(
         app=app,
-        secret_key='test',
+        secret_key="test",
         engine=engine,
         middlewares=[Middleware(CorrelationIdMiddleware)],
     )
@@ -84,15 +83,14 @@ def test_middlewares() -> None:
     assert "x-correlation-id" in response.headers
 
 
-
 def test_get_save_redirect_url():
     app = Starlette()
     app.add_middleware(SessionMiddleware, secret_key="test-secret")
-    admin = Admin(app=app, secret_key='test',engine=engine)
+    admin = Admin(app=app, secret_key="test", engine=engine)
     added_users = []
 
     class UserAdmin(ModelView):
-        model=User
+        model = User
         save_as = True
 
     admin.add_view(UserAdmin)
@@ -104,17 +102,19 @@ def test_get_save_redirect_url():
         form_data = await request.form()
         url = admin.get_save_redirect_url(request, form_data, admin.views[0], obj)
         return Response(str(url))
-    
+
     @app.route("/get-messages")
     async def get_messages(request: Request):
         return JSONResponse({"messages": request.session.pop("_messages", [])})
 
     client = TestClient(app)
 
-    response = client.post("/user", data={"_save": "Save","_form_type":"added"})
+    response = client.post("/user", data={"_save": "Save", "_form_type": "added"})
     assert response.text == "http://testserver/admin/user/list"
     resp = client.get("/get-messages")
-    assert {"level": "success", "message": f"The User “{added_users[0]}” was added successfully."} in resp.json()["messages"]
+    assert {"level": "success", "message": f"The User “{added_users[0]}” was added successfully."} in resp.json()[
+        "messages"
+    ]
 
     response = client.post("/user", data={"_continue": "Save and continue editing"})
     assert response.text == "http://testserver/admin/user/edit/1"
@@ -122,19 +122,19 @@ def test_get_save_redirect_url():
     response = client.post("/user", data={"_saveasnew": "Save as new"})
     assert response.text == "http://testserver/admin/user/edit/1"
 
-    response = client.post("/user", data={"_addanother": "Save and add another","_form_type":"changed"})
+    response = client.post("/user", data={"_addanother": "Save and add another", "_form_type": "changed"})
     assert response.text == "http://testserver/admin/user/create"
     resp = client.get("/get-messages")
     message = f"The User “{added_users[0]}” was changed successfully. You may add another User below."
-    assert {'level': 'success', 'message': message} in resp.json()["messages"]
+    assert {"level": "success", "message": message} in resp.json()["messages"]
 
 
 def test_build_category_menu():
     app = Starlette()
-    admin = Admin(app=app, secret_key='test',engine=engine)
+    admin = Admin(app=app, secret_key="test", engine=engine)
 
     class UserAdmin(ModelView):
-        model=User
+        model = User
         category = "Accounts"
         divider_title = "Apps"
 
@@ -143,13 +143,12 @@ def test_build_category_menu():
     assert admin._menu.items[0].divider == "Apps"
 
 
-
 def test_normalize_wtform_fields() -> None:
     app = Starlette()
-    admin = Admin(app=app, secret_key='test',engine=engine)
+    admin = Admin(app=app, secret_key="test", engine=engine)
 
     class DataModelAdmin(ModelView):
-        model=DataModel
+        model = DataModel
 
     datamodel = DataModel(id=1, data="abcdef")
     admin.add_view(DataModelAdmin)
@@ -158,24 +157,22 @@ def test_normalize_wtform_fields() -> None:
 
 def test_denormalize_wtform_fields() -> None:
     app = Starlette()
-    admin = Admin(app=app, secret_key='test',engine=engine)
+    admin = Admin(app=app, secret_key="test", engine=engine)
 
     class DataModelAdmin(ModelView):
-        model=DataModel
+        model = DataModel
 
     datamodel = DataModel(id=1, data="abcdef")
     admin.add_view(DataModelAdmin)
-    assert admin._denormalize_wtform_data({"data_": "abcdef"}, datamodel) == {
-        "data": "abcdef"
-    }
+    assert admin._denormalize_wtform_data({"data_": "abcdef"}, datamodel) == {"data": "abcdef"}
 
 
 def test_validate_page():
     app = Starlette()
-    admin = Admin(app=app, secret_key='test',engine=engine)
+    admin = Admin(app=app, secret_key="test", engine=engine)
 
     class UserAdmin(ModelView):
-        model=User
+        model = User
 
     admin.add_view(UserAdmin)
 
@@ -183,4 +180,3 @@ def test_validate_page():
 
     response = client.get("/admin/user/list/?page=10000")
     assert response.status_code == 200
-

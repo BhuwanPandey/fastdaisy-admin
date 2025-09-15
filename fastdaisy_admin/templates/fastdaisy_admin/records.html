@@ -60,27 +60,32 @@
           />
         </td>
 
-        {% for name in model_view._list_prop_names %} {% set value,
-        formatted_value, has_link = model_view.get_list_value(row, name) %} {%
-        if name in model_view._relation_names %} {% if is_list( value ) %}
-        <td class="field-text">
-          {% for elem, formatted_elem in zip(value, formatted_value) %} {% if
-          model_view.show_compact_lists %}
-          <a href="{{ model_view._build_url_for('admin:edit', request, elem) }}"
-            >({{ formatted_elem }})</a
-          >
-          {% else %}
-          <a href="{{ model_view._build_url_for('admin:edit', request, elem) }}"
-            >{{ formatted_elem }}</a
-          ><br />
-          {% endif %} {% endfor %}
-        </td>
+        {% for name in model_view._list_prop_names %} 
+        {% set value,formatted_value, has_link = model_view.get_list_value(row, name) %} 
+        {% if name in model_view._relation_names %} 
+        {% if is_list( value ) %}
+          <td class="field-text">
+            {% for elem, formatted_elem in zip(value, formatted_value) %} 
+            {% if model_view.show_compact_lists %}
+            <a href="{{ model_view._build_url_for('admin:edit', request, elem) }}"
+              >({{ formatted_elem }})</a
+            >
+            {% else %}
+            <a href="{{ model_view._build_url_for('admin:edit', request, elem) }}"
+              >{{ formatted_elem }}</a
+            ><br />
+            {% endif %} 
+            {% endfor %}
+          </td>
         {% else %}
         <td>
-          <a
+          {% if value %}
+            <a
             href="{{ model_view._build_url_for('admin:edit', request, value) }}"
-            >{{ formatted_value }}</a
-          >
+            >{{ formatted_value }}</a>
+          {% else %}
+              {{ formatted_value }}
+          {% endif %}
         </td>
         {% endif %} {% else %}
         <td class="break-all">
