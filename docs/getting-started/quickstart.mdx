@@ -37,7 +37,7 @@ Base.metadata.create_all(engine)  # Create tables
 
 ```python {2,6,14}
 from starlette.applications import Starlette
-from fastdaisy-admin import Admin, ModelView
+from fastdaisy_admin import Admin, ModelView
 
 
 app = Starlette()
@@ -56,7 +56,7 @@ admin.add_view(UserAdmin)
 
 ```python {2,6,13}
 from fastapi import FastAPI
-from fastdaisy-admin import Admin, ModelView
+from fastdaisy_admin import Admin, ModelView
 
 
 app = FastAPI()

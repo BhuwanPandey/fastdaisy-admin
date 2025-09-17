@@ -3,11 +3,12 @@ title: Permissions & Metadata
 icon: shield-check    
 ---
 
-Now, Let me create various model and integrate `fastapi-admin` into fastapi application.
+Now, Let me create various model and integrate `fastdaisy-admin` into fastapi application.
 
 ```python
-from sqlalchemy import Column, Boolean, Integer, String, create_engine
-from sqlalchemy.orm import declarative_base
+from sqlalchemy import Column, Boolean, Integer, String, create_engine, Text, DATETIME
+from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy import ForeignKey
 from fastapi import FastAPI
 from fastdaisy_admin import Admin, ModelView
 
@@ -26,8 +27,20 @@ class User(Base):
     password = Column(String)
     address = Column(String)
     age = Column(Integer)
+    books = relationship("Book", back_populates="author", cascade="all, delete-orphan")
     is_admin = Column(Boolean, default=False)
 
+class Book(Base):
+    __tablename__ = 'books'
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String)
+    description = Column(Text)
+    author_id = Column(Integer, ForeignKey('users.id'))
+    author = relationship("User", back_populates="books")
+    code = Column(Integer, default=1)
+    is_available = Column(Boolean, default=True)
+    created_at = Column(DATETIME)
 
 Base.metadata.create_all(engine)  # Create tables
 
@@ -41,19 +54,22 @@ class UserAdmin(ModelView):
     model = User
     column_list = [User.id, User.name]
 
+class BookAdmin(ModelView):
+    model = Book
 
 admin.add_view(UserAdmin)
+admin.add_view(BookAdmin)
 ```
 
 ## Permissions
 
 You can configure a few general permissions for this model. The following options are available:
 
-- `can_create`: Allow to create new instances. Default value is True.
-- `can_edit`: Allow to edit created instances. Default value is True.
-- `can_delete`: Allow to delete model instance. Default value is True.
-- `only_view`: Only allow to view instance . Default value is False.
-- `can_export`: The model data can be exported in the list page. Default value is True.
+- `can_create`: Allow to create new instances. Default value is `True`.
+- `can_edit`: Allow to edit created instances. Default value is `True`.
+- `can_delete`: Allow to delete model instance. Default value is `True`.
+- `only_view`: Only allow to view instance . Default value is `False`.
+- `can_export`: The model data can be exported in the list page. Default value is `True`.
 
 ```python {4-7}
 
@@ -74,7 +90,7 @@ The metadata for the model. The options are:
 - `icon`: Icon to be displayed for this model in the admin. Only FontAwesome supported.
 - `category`: Category name to display group of ModelView classes together in dropdown.
 - `category_icon`: Category icon to display.
-- `divider_title`: Title for divider which separate model in sidebar.
+- `divider_title`: Divider title that separate Modelview or group of Modelview classes in sidebar.
 
 ```python {4-9}
 

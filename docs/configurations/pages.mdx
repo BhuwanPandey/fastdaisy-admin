@@ -13,9 +13,9 @@ Various options that allow configuration in list page are:
 - `column_formatters`: Dictionary of column formatters in the list page.
 - `column_searchable_list`: List of columns or column names to be searchable in the list page.
 - `column_sortable_list`: List of columns or column names to be sortable in the list page.
-- `list_per_page`: Number of items to be display in list page. Default value is `10`.
 - `column_default_sort`: Default sorting if no sorting is applied, tuple of (column, is_descending) or list of the tuple for multiple columns.
 - `column_filters`: List of columns or column names to be filterable in the list page.
+- `list_per_page`: Number of items to be display in list page. Default value is `10`.
 - `list_query`: A method to customize the list query.
 - `count_query`: A method to customize the count query.
 - `search_query`: A method to customize the search query.
@@ -28,12 +28,17 @@ class UserAdmin(ModelView):
     column_searchable_list = [User.name]
     column_display_link = [User.name]
     column_sortable_list = [User.id]
-    list_per_page = 20
     column_formatters = {User.name: lambda m, a: m.name[:10]}
     column_default_sort = [(User.email, True), (User.name, False)]
     column_filters = [User.name]
+    list_per_page = 20
 
 ```
+
+<Tip>
+    You can use the special keyword `__all__` in column_list 
+    if you don't want to specify all the columns manually. For example: column_list = `__all__`
+</Tip>
 
 ## Forms
 Form customization with your models. The forms are based on `WTForms` package and include the following options:
@@ -87,3 +92,11 @@ class UserAdmin(ModelView):
     export_types = ['csv']
 
 ```
+
+## Built in Column Filters
+Two filters are available which get implemented automatically based on model fields `for_eg: column_filters = [User.name, "is_admin"]` but you can also create custom filters, by following [sqladmin docs](https://aminalaee.github.io/sqladmin/configurations/#columnfilter).
+All filters have a default value of "all" which allows the user to display all records.
+- `BooleanFilter` - A filter for boolean columns, with the values of Yes (true) and No (false)
+- `AllUniqueStringValuesFilter` - A filter for string columns, with the values of all unique values in the column
+
+

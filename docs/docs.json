@@ -6,7 +6,7 @@
       "dark": "#222831",
       "light": "#EEEEEE"
     },
-    "decoration": "windows"
+    "decoration": "gradient"
   },
   "colors": {
     "primary": "#6d45dc",
@@ -19,7 +19,7 @@
       {
         "group": "Getting Started",
         "pages": [
-          "getting-started/welcome",
+          "index",
           "getting-started/installation",
           "getting-started/quickstart"
         ]
@@ -27,6 +27,10 @@
       {
         "group": "Configurations",
         "pages": ["configurations/perms", "configurations/pages", "configurations/tem_events"]
+      },
+      {
+        "group": "Others",
+        "pages": ["others/notes"]
       }
     ]
   },
@@ -38,6 +42,13 @@
     "primary": {
       "href": "https://github.com/BhuwanPandey/fastdaisy-admin",
       "type": "github"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/BhuwanPandey/fastdaisy-admin",
+      "youtube": "https://www.youtube.com/@bhuwanpandey2783",
+      "linkedin": "https://www.linkedin.com/in/bhuwan-pandey-38224a1b7"
     }
   },
   "theme": "mint"

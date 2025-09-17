@@ -1,0 +1,29 @@
+---
+title: Notes
+icon: note
+---
+
+The goal of this project is to bring a `Django Admin` like experience to FastAPI applications. It still under 
+active development, some features may be missing or behave differently compared to `Django Admin`.
+
+At its core, this project is built on top of `sqladmin`, meaning most features available in `sqladmin` are also supported here.
+
+### `fastdaisy_admin` vs `sqladmin`
+- `fastdaisy_admin` is inspired by the look and feel of `Django Admin`.
+- The `detail page` section has been removed.
+- `Secret key` is required during the setup.
+- Improvement
+    - Simplified creation of custom actions
+    - Filters can be applied without explicitly defining filter classes
+    - Success messages are shown after creating or editing data
+    - Confirmation page displays a list of items before deletion
+    - Enhanced pagination
+    - Fully styled using `DaisyUI`
+
+<Warning>
+Most features are not explicitly documented here, as they behave the same as in sqladmin. 
+For more details, refer to the [sqladmin documentation](https://aminalaee.github.io/sqladmin/)
+. This documentation will be expanded in the future as unique features are added.
+</Warning>
+
+

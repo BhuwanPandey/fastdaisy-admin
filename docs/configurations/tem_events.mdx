@@ -40,40 +40,40 @@ class UserAdmin(ModelView):
 
 ## Custom Action
 
-The available options for action are:
+The available options for an action include:
 
-- `name`: A string name to be used in URL for this action.
-- `label`: A string for describing this action.
-- `add_in_list`: A boolean indicating if this action should be available in list page.
-- `add_in_detail`: A boolean indicating if this action should be available in detail page.
-- `confirmation_message`: A string message that if defined, will open a modal to ask for confirmation before calling the action method.
+- `name`: If not explicitly provided, the function name will be used as the action name which is displayed in the action 
+dropdown on the list page.
 
-```python
+Although there is a built-in export feature that allows users to export records in CSV or JSON format,
+the example below demonstrates how to create a custom action to export selected records.
 
+
+```python {7-20,23}
+
+import json
 from fastdaisy_admin import BaseView, action
+
+
+
+@action(
+        name="Export Json"
+    )
+async def export_to_json(modelview, request,objs):
+    data = [
+        {"id": u.id, "name": u.name, "email": u.email, "is_active": u.is_admin}
+        for u in objs
+    ]
+    return Response(
+        content=json.dumps(data, indent=2),
+        media_type="application/json",
+        headers={"Content-Disposition": "attachment; filename=users_export.json"}
+    )
 
 class UserAdmin(ModelView):
     model = User
-    @action(
-        name="approve_users",
-        label="Approve",
-        confirmation_message="Are you sure?",
-        add_in_detail=True,
-        add_in_list=True,
-    )
-    async def approve_users(self, request: Request):
-        pks = request.query_params.get("pks", "").split(",")
-        if pks:
-            for pk in pks:
-                model: User = await self.get_object_for_edit(pk)
-                ...
-
-        referer = request.headers.get("Referer")
-        if referer:
-            return RedirectResponse(referer)
-        else:
-            return RedirectResponse(request.url_for("admin:list", identity=self.identity))
-
+    actions = [export_to_json]
+    
 admin.add_view(UserAdmin)
 
 ```
