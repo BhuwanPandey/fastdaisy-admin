@@ -1,6 +1,10 @@
 {% extends "fastdaisy_admin/layout.html" %}
 {% from 'fastdaisy_admin/_macros.html' import render_form_fields %}
 
+{% block head %}
+<title>{{ admin.title }} - Edit</title>
+{% endblock %}
+
 {% block breadcrumbs %}
         <div class="flex items-center max-md:p-3 p-5 pb-0 flex-wrap justify-between">
         <div class="text-sm max-md:hidden breadcrumbs">

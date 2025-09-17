@@ -2,17 +2,8 @@
     <span class="me-1 font-bold text-sm hidden sm:block">Action:</span>
     <div id="id_action_form_container" class="w-full">
         <label  class="sr-only">Action:</label>
-        <select name="action" class="select select-sm w-full">
+        <select name="action" class="select select-sm w-[180px]">
             <option value="" selected="">---------</option>
-
-            <!-- TODO: setting width -->
-            <!-- {% if model_view.can_delete %}
-                <option value="delete_selected">Delete selected {{model_view.name_plural}}</option>
-            {% endif %}
-            {% for title, func in model_view._custom_actions_in_list.items() %}
-                    <option value="{{func.name}}">{{title}}</option>
-            {% endfor %} -->
-
             {% for name,values in model_view.get_actions %}
                 <option value="{{name}}">{{values.0}}</option>
             {% endfor %}
