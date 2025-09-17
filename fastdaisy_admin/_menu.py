@@ -87,7 +87,7 @@ class ViewMenu(ItemMenu):
 
 class Menu:
     def __init__(self) -> None:
-        self.divider:dict[str|None, list[ItemMenu]] = {}
+        self.divider: dict[str | None, list[ItemMenu]] = {}
         self.items: list[ItemMenu] = []
 
     def add(self, item: ItemMenu) -> None:

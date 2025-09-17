@@ -52,7 +52,9 @@ class BooleanFilter:
         self.title = title or get_title(column)
         self.parameter_name = parameter_name or get_parameter_name(column)
 
-    async def lookups(self, request: Request, model: Any, run_query: Callable[[Select], Any]) -> list[tuple[str, bool, str]]:
+    async def lookups(
+        self, request: Request, model: Any, run_query: Callable[[Select], Any]
+    ) -> list[tuple[str, bool, str]]:
         param = request.query_params.get(self.parameter_name)
         lookup = []
         for display in ["All", "Yes", "No"]:
@@ -91,7 +93,9 @@ class AllUniqueStringValuesFilter:
         self.title = title or get_title(column)
         self.parameter_name = parameter_name or get_parameter_name(column)
 
-    async def lookups(self, request: Request, model: Any, run_query: Callable[[Select], Any]) -> list[tuple[str, bool, str]]:
+    async def lookups(
+        self, request: Request, model: Any, run_query: Callable[[Select], Any]
+    ) -> list[tuple[str, bool, str]]:
         column_obj = get_column_obj(self.column, model)
         param = request.query_params.getlist(self.parameter_name)
         selected = not param

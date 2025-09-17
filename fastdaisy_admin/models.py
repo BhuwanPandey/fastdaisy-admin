@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import builtins
 import json
 import time
 from collections import defaultdict
-from collections.abc import AsyncGenerator, Callable, Generator, Sequence, ItemsView
+from collections.abc import AsyncGenerator, Callable, Generator, ItemsView, Sequence
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
@@ -17,7 +16,7 @@ import anyio
 from sqlalchemy import Boolean, Column, String, asc, cast, desc, func, inspect, or_
 from sqlalchemy.exc import NoInspectionAvailable
 from sqlalchemy.ext.declarative import DeclarativeMeta
-from sqlalchemy.orm import RelationshipProperty, class_mapper, selectinload, sessionmaker,Mapper
+from sqlalchemy.orm import InstrumentedAttribute, Mapper, RelationshipProperty, class_mapper, selectinload, sessionmaker
 from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlalchemy.sql.elements import ClauseElement
 from sqlalchemy.sql.expression import Select, select
@@ -31,7 +30,7 @@ from wtforms.fields.core import UnboundField
 from fastdaisy_admin._queries import Query
 from fastdaisy_admin._types import MODEL_ATTR, AdminAction, ColumnFilter
 from fastdaisy_admin.actions import delete_selected
-from fastdaisy_admin.exceptions import InvalidModelError
+from fastdaisy_admin.exceptions import InvalidField, InvalidModelError
 from fastdaisy_admin.filters import AllUniqueStringValuesFilter, BooleanFilter
 from fastdaisy_admin.formatters import BASE_FORMATTERS
 from fastdaisy_admin.forms import ModelConverter, ModelConverterBase, get_model_form
@@ -41,7 +40,6 @@ from fastdaisy_admin.helpers import (
     get_primary_keys,
     is_relationship,
     object_identifier_values,
-    prettify_class_name,
     secure_filename,
     slugify_class_name,
     stream_to_csv,
@@ -181,7 +179,7 @@ class ModelView(BaseView):
     """
 
     # List page
-    column_list: ClassVar[str | Sequence[MODEL_ATTR]]
+    column_list: ClassVar[Sequence[MODEL_ATTR]]
     """List of columns to display in `List` page.
     Columns can either be string names or SQLAlchemy columns.
 
@@ -371,7 +369,7 @@ class ModelView(BaseView):
     displayed in a separate line."""
 
     # Export
-    column_export_list: ClassVar[builtins.list[MODEL_ATTR]] = []
+    column_export_list: ClassVar[list[MODEL_ATTR]] = []
     """List of columns to include when exporting.
     Columns can either be string names or SQLAlchemy columns.
 
@@ -383,7 +381,7 @@ class ModelView(BaseView):
         ```
     """
 
-    column_export_exclude_list: ClassVar[builtins.list[MODEL_ATTR]] = []
+    column_export_exclude_list: ClassVar[list[MODEL_ATTR]] = []
     """List of columns to exclude when exporting.
     Columns can either be string names or SQLAlchemy columns.
 
@@ -395,7 +393,7 @@ class ModelView(BaseView):
         ```
     """
 
-    export_types: ClassVar[builtins.list[str]] = ["csv", "json"]
+    export_types: ClassVar[list[str]] = ["csv", "json"]
     """A list of available export filetypes.
     Currently only `csv` is supported.
     """
@@ -580,8 +578,7 @@ class ModelView(BaseView):
 
     def __init__(self) -> None:
         try:
-            self._mapper = inspect(self.model)
-            # self._mapper: Mapper = inspect(self.model)
+            self._mapper: Mapper = inspect(self.model)
         except NoInspectionAvailable:
             raise InvalidModelError(f"Class {self.model.__name__} is not a SQLAlchemy model.")
 
@@ -589,9 +586,8 @@ class ModelView(BaseView):
         self.pk_columns = get_primary_keys(self.model)
         self.identity = slugify_class_name(self.model.__name__)
 
-        self.name = _attrs.get("name", self.model.__name__)
+        self.name = _attrs.get("name", self.model.__name__).capitalize()
         self.name_plural = _attrs.get("name_plural", f"{self.name}s").capitalize()
-        print(self.name,self.name_plural,'datae')
         self._has_link_column: dict[str, bool] = {}
 
         if self.model.__str__ == object.__str__:
@@ -625,7 +621,6 @@ class ModelView(BaseView):
         self._relation_names = [relation.key for relation in self._mapper.relationships]
 
         self.model_columns = {col.name: col.type for col in self._mapper.columns}
-
         self._column_labels = self._build_column_pairs(self.column_labels)
         self._column_labels_value_by_key = {v: k for k, v in self._column_labels.items()}
 
@@ -649,7 +644,7 @@ class ModelView(BaseView):
         self._default_action = {"delete_selected": delete_selected}
         # self._custom_actions_confirmation: Dict[str, str] = {}
 
-    def _check_conflicting_options(mcls, keys: builtins.list[str], attrs: dict) -> None:
+    def _check_conflicting_options(mcls, keys: list[str], attrs: dict) -> None:
         if all(k in attrs for k in keys):
             raise AssertionError(f"Cannot use {' and '.join(keys)} together.")
 
@@ -704,7 +699,7 @@ class ModelView(BaseView):
     def _get_prop_name(self, prop: MODEL_ATTR) -> str:
         return prop if isinstance(prop, str) else prop.key
 
-    def _get_default_sort(self) -> builtins.list[tuple[str, bool]]:
+    def _get_default_sort(self) -> list[tuple[str, bool]]:
         if self.column_default_sort:
             if isinstance(self.column_default_sort, list):
                 return self.column_default_sort
@@ -786,7 +781,7 @@ class ModelView(BaseView):
         pagination.total = total
         return pagination
 
-    async def get_model_objects(self, request: Request, limit: int | None = 0) -> builtins.list[Any]:
+    async def get_model_objects(self, request: Request, limit: int | None = 0) -> list[Any]:
         # For unlimited rows this should pass None
         limit = None if limit == 0 else limit
         stmt = self.list_query(request).limit(limit)
@@ -904,12 +899,13 @@ class ModelView(BaseView):
         return result
 
     @property
-    def get_actions(self) -> ItemsView[str,tuple[str,Callable]]:
+    def get_actions(self) -> ItemsView[str, tuple[str, Callable]]:
         actions = dict()
-        key, func = next(iter(self._default_action.items()))
-        title = f"{func._title} {self.name_plural}"
-        description = title
-        actions = {key: (description, func)}
+        if self.can_delete:
+            key, func = next(iter(self._default_action.items()))
+            title = f"{func._title} {self.name_plural}"
+            description = title
+            actions = {key: (description, func)}
         for name, func in self._custom_actions_in_list.items():
             actions[name] = (func._title, func)
         return actions.items()
@@ -926,10 +922,10 @@ class ModelView(BaseView):
 
     def _build_column_list(
         self,
-        defaults: builtins.list[str],
+        defaults: list[str],
         include: str | Sequence[MODEL_ATTR] | None = None,
         exclude: str | Sequence[MODEL_ATTR] | None = None,
-    ) -> builtins.list[str]:
+    ) -> list[str]:
         """This function generalizes constructing a list of columns
         for any sequence of inclusions or exclusions.
         """
@@ -942,7 +938,7 @@ class ModelView(BaseView):
             return [prop for prop in self._prop_names if prop not in exclude]
         return defaults
 
-    def get_list_columns(self) -> builtins.list[str]:
+    def get_list_columns(self) -> list[str]:
         """Get list of properties to display in List page."""
 
         column_list = getattr(self, "column_list", None)
@@ -953,7 +949,7 @@ class ModelView(BaseView):
             defaults=["__str__"],
         )
 
-    def get_form_columns(self) -> builtins.list[str]:
+    def get_form_columns(self) -> list[str]:
         """Get list of properties to display in the form."""
 
         form_columns = getattr(self, "form_columns", None)
@@ -965,7 +961,7 @@ class ModelView(BaseView):
             defaults=self._prop_names,
         )
 
-    def get_export_columns(self) -> builtins.list[str]:
+    def get_export_columns(self) -> list[str]:
         """Get list of properties to export."""
 
         columns = getattr(self, "column_export_list", None)
@@ -988,21 +984,26 @@ class ModelView(BaseView):
             return "multiple"
         return ""
 
-    def get_filter_for_column(self, columns: list | tuple) -> builtins.list[ColumnFilter]:
+    def get_filter_for_column(self, columns: list | tuple) -> list[ColumnFilter]:
         filters = []
         for column in columns:
             if isinstance(column, str) and column in self.model_columns:
                 col_type = type(self.model_columns.get(column))
-            elif issubclass(column.class_, self.model) and column.name in self.model_columns:
+            elif (
+                isinstance(column, InstrumentedAttribute)
+                and issubclass(column.class_, self.model)
+                and column.key in self.model_columns
+            ):
                 col_type = type(self.model_columns.get(column.name))
-
+            else:
+                raise InvalidField(f"{column} is not valid or unsupported {self.model.__name__} Field")
             if col_type is Boolean:
                 filters.append(BooleanFilter(column))
             else:
                 filters.append(AllUniqueStringValuesFilter(column))
         return filters
 
-    def get_filters(self) -> builtins.list[ColumnFilter]:
+    def get_filters(self) -> list[ColumnFilter]:
         """Get list of filters."""
 
         filters = getattr(self, "column_filters", None)
@@ -1050,7 +1051,7 @@ class ModelView(BaseView):
         By default do nothing.
         """
 
-    async def scaffold_form(self, rules: builtins.list[str] | None = None) -> type[Form]:
+    async def scaffold_form(self, rules: list[str] | None = None) -> type[Form]:
         if self.form is not None:
             return self.form
 
@@ -1177,7 +1178,7 @@ class ModelView(BaseView):
 
     async def export_data(
         self,
-        data: builtins.list[Any],
+        data: list[Any],
         export_type: str = "csv",
     ) -> StreamingResponse:
         if export_type == "csv":
@@ -1188,7 +1189,7 @@ class ModelView(BaseView):
 
     async def _export_csv(
         self,
-        data: builtins.list[Any],
+        data: list[Any],
     ) -> StreamingResponse:
         async def generate(writer: Writer) -> AsyncGenerator[Any, None]:
             # Append the column titles at the beginning
@@ -1210,7 +1211,7 @@ class ModelView(BaseView):
 
     async def _export_json(
         self,
-        data: builtins.list[Any],
+        data: list[Any],
     ) -> StreamingResponse:
         async def generate() -> AsyncGenerator[str, None]:
             yield "["
@@ -1239,7 +1240,7 @@ class ModelView(BaseView):
             self._form_create_rules = self.form_create_rules
             self._form_edit_rules = self.form_edit_rules
 
-    def _validate_form_class(self, ruleset: builtins.list[Any], form_class: type[Form]) -> None:
+    def _validate_form_class(self, ruleset: list[Any], form_class: type[Form]) -> None:
         form_fields = []
         for name, obj in form_class.__dict__.items():
             if isinstance(obj, UnboundField):

@@ -46,7 +46,7 @@ class Query:
                         target_pks,
                         object_identifier_values(value, target),
                     )
-                ) # type: ignore
+                )  # type: ignore
             )
         return select(target).where(or_(*conditions))
 
@@ -67,8 +67,8 @@ class Query:
         # ensures we write the correct value to the fk fields
         pk_value = {pk: value for pk, value in zip(pks, values)}
 
-        for fk, pk in relation.local_remote_pairs: # type: ignore
-            setattr(obj, fk.name, pk_value[pk]) # type: ignore
+        for fk, pk in relation.local_remote_pairs:  # type: ignore
+            setattr(obj, fk.name, pk_value[pk])  # type: ignore
 
         return obj
 
@@ -158,7 +158,7 @@ class Query:
             return obj
 
     def _get_delete_stmt(self, pk: Any) -> Select:
-        stmt:Select = select(self.model_view.model)
+        stmt: Select = select(self.model_view.model)
         pks = get_primary_keys(self.model_view.model)
         values = object_identifier_values(pk, self.model_view.model)
         conditions = [pk == value for (pk, value) in zip(pks, values)]
@@ -226,4 +226,3 @@ class Query:
             return await self._update_async(pk, data, request)
         else:
             return await anyio.to_thread.run_sync(self._update_sync, pk, data, request)
-

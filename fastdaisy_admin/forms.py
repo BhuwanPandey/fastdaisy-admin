@@ -23,7 +23,6 @@ from sqlalchemy.orm import (
     sessionmaker,
 )
 from sqlalchemy.sql.elements import Label
-from sqlalchemy.sql.elements import NamedColumn
 from wtforms import (
     BooleanField,
     DecimalField,
@@ -509,7 +508,7 @@ async def get_model_form(
 ) -> type[Form]:
     type_name = model.__name__ + "Form"
     converter = form_converter()
-    mapper = sqlalchemy_inspect(model) # type: ignore
+    mapper = sqlalchemy_inspect(model)  # type: ignore
     form_args = form_args or {}
     form_widget_args = form_widget_args or {}
     column_labels = column_labels or {}

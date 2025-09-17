@@ -6,14 +6,13 @@ import logging
 from collections.abc import Awaitable, Callable, Sequence
 from types import MethodType
 from typing import (
-    TYPE_CHECKING,
     Any,
     cast,
 )
 
 from jinja2 import ChoiceLoader, FileSystemLoader, PackageLoader
 from sqlalchemy.engine import Engine
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import Session, sessionmaker
 from starlette.applications import Starlette
 from starlette.datastructures import URL, FormData, UploadFile
@@ -26,7 +25,7 @@ from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
 from fastdaisy_admin._menu import CategoryMenu, Menu, ViewMenu
-from fastdaisy_admin._types import ENGINE_TYPE, AdminAction,SYNC_ENGINE_TYPE,ASYNC_ENGINE_TYPE
+from fastdaisy_admin._types import ASYNC_ENGINE_TYPE, ENGINE_TYPE, AdminAction
 from fastdaisy_admin.authentication import AuthenticationBackend
 from fastdaisy_admin.decorators import login_required
 from fastdaisy_admin.forms import WTFORMS_ATTRS, WTFORMS_ATTRS_REVERSED
@@ -40,7 +39,6 @@ from fastdaisy_admin.helpers import (
 )
 from fastdaisy_admin.models import BaseView, ModelView
 from fastdaisy_admin.templating import Jinja2Templates
-from sqlalchemy.ext.asyncio import async_sessionmaker
 
 # if TYPE_CHECKING:
 #     from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -81,22 +79,24 @@ class BaseAdmin:
         self.logo_url = logo_url
         self.favicon_url = favicon_url
 
+        assert isinstance(secret_key, str), f"SECRET KEY should be String but It contains {secret_key}"
+
         if session_maker:
             self.session_maker = session_maker
         elif isinstance(engine, Engine):
             self.session_maker = sessionmaker(bind=engine, class_=Session)
         else:
-            engine = cast(ASYNC_ENGINE_TYPE,self.engine)
+            engine = cast(ASYNC_ENGINE_TYPE, self.engine)
             self.session_maker = async_sessionmaker(bind=engine, class_=AsyncSession)
 
         self.session_maker.configure(autoflush=False, autocommit=False)
         self.is_async = is_async_session_maker(self.session_maker)
 
-        middlewares = middlewares or []
         self.authentication_backend = authentication_backend
 
-        middlewares = list(middlewares)
-        middlewares.extend([Middleware(SessionMiddleware, secret_key=secret_key)])
+        middlewares = list(middlewares) if middlewares is not None else []
+        middlewares.insert(0, Middleware(SessionMiddleware, secret_key=secret_key))
+
         self.admin = Starlette(middleware=middlewares)
         self.templates = self.init_templating_engine()
         self._views: list[BaseView | ModelView] = []
@@ -411,16 +411,6 @@ class Admin(BaseAdminView):
 
         return await self.templates.TemplateResponse(request, "fastdaisy_admin/index.html")
 
-    async def response_action(self, form, request: Request, model_view: ModelView):
-        selected = form.getlist("_selected_action")
-        action = form.get("action")
-        action_entry = cast(tuple[str, Callable], dict(model_view.get_actions).get(action))
-        func = action_entry[1]
-        objects = await model_view.get_model_objects_with_pk(selected)
-        request.state.form = form
-        response = await func(model_view, request, objects)
-        return response
-
     @login_required
     async def list(self, request: Request) -> Response:
         """List route to display paginated Model instances."""
@@ -580,6 +570,16 @@ class Admin(BaseAdminView):
         rows = await model_view.get_model_objects(request=request, limit=model_view.export_max_rows)
         return await model_view.export_data(rows, export_type=export_type)
 
+    async def response_action(self, form, request: Request, model_view: ModelView):
+        selected = form.getlist("_selected_action")
+        action = form.get("action")
+        action_entry = cast(tuple[str, Callable], dict(model_view.get_actions).get(action))
+        func = action_entry[1]
+        objects = await model_view.get_model_objects_with_pk(selected)
+        request.state.form = form
+        response = await func(model_view, request, objects)
+        return response
+
     async def login(self, request: Request) -> Response:
         assert self.authentication_backend is not None
 
@@ -603,6 +603,32 @@ class Admin(BaseAdminView):
 
         url = str(request.url_for("admin:login"))
         return JSONResponse({"redirect_url": url})
+
+    async def _handle_form_data(self, request: Request, obj: Any = None) -> FormData:
+        """
+        Handle form data and modify in case of UploadFile.
+        This is needed since in edit page
+        there's no way to show current file of object.
+        """
+
+        form = await request.form()
+        form_data: list[tuple[str, str | UploadFile]] = []
+        for key, value in form.multi_items():
+            if not isinstance(value, UploadFile):
+                form_data.append((key, value))
+                continue
+
+            should_clear = form.get(key + "_checkbox")
+            empty_upload = len(await value.read(1)) != 1
+            await value.seek(0)
+            if should_clear:
+                form_data.append((key, UploadFile(io.BytesIO(b""))))
+            elif empty_upload and obj and getattr(obj, key):
+                f = getattr(obj, key)  # In case of update, imitate UploadFile
+                form_data.append((key, UploadFile(filename=f.name, file=f.open())))
+            else:
+                form_data.append((key, value))
+        return FormData(form_data)
 
     def get_save_redirect_url(self, request: Request, form: FormData, model_view: ModelView, obj: Any) -> str | URL:
         """
@@ -636,32 +662,6 @@ class Admin(BaseAdminView):
 
         add_message(request, msg, "success")
         return url
-
-    async def _handle_form_data(self, request: Request, obj: Any = None) -> FormData:
-        """
-        Handle form data and modify in case of UploadFile.
-        This is needed since in edit page
-        there's no way to show current file of object.
-        """
-
-        form = await request.form()
-        form_data: list[tuple[str, str | UploadFile]] = []
-        for key, value in form.multi_items():
-            if not isinstance(value, UploadFile):
-                form_data.append((key, value))
-                continue
-
-            should_clear = form.get(key + "_checkbox")
-            empty_upload = len(await value.read(1)) != 1
-            await value.seek(0)
-            if should_clear:
-                form_data.append((key, UploadFile(io.BytesIO(b""))))
-            elif empty_upload and obj and getattr(obj, key):
-                f = getattr(obj, key)  # In case of update, imitate UploadFile
-                form_data.append((key, UploadFile(filename=f.name, file=f.open())))
-            else:
-                form_data.append((key, value))
-        return FormData(form_data)
 
     def _normalize_wtform_data(self, obj: Any) -> dict:
         form_data = {}

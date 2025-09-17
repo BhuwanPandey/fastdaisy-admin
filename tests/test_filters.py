@@ -6,10 +6,10 @@ from bs4 import BeautifulSoup
 from httpx import AsyncClient
 from httpx._transports.asgi import ASGITransport
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.orm import declarative_base
 from starlette.applications import Starlette
-from sqlalchemy.ext.asyncio import async_sessionmaker
+
 from fastdaisy_admin import Admin, ModelView
 from tests.common import async_engine as engine
 

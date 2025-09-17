@@ -19,13 +19,13 @@ from tests.common import sync_engine as engine
 Base = declarative_base()
 
 
-class DataModel(Base): # type: ignore
+class DataModel(Base):  # type: ignore
     __tablename__ = "datamodel"
     id = Column(Integer, primary_key=True)
     data = Column(String)
 
 
-class User(Base): # type: ignore
+class User(Base):  # type: ignore
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)

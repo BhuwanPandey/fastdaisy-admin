@@ -185,7 +185,7 @@ class QuerySelectField(fields.SelectFieldBase):
     def process_formdata(self, valuelist: list[str]) -> None:
         if valuelist:
             if self.allow_blank and valuelist[0] == "__None":
-                self.data = None # type: ignore
+                self.data = None  # type: ignore
             else:
                 self._data = None
                 self._formdata = valuelist[0]

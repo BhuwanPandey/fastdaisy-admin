@@ -1,13 +1,14 @@
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import declarative_base
 from starlette.requests import Request
+
 from fastdaisy_admin import ModelView
 from fastdaisy_admin._menu import CategoryMenu, ItemMenu, Menu, ViewMenu
 
-Base = declarative_base() # type: ignore
+Base = declarative_base()  # type: ignore
 
 
-class User(Base): # type: ignore
+class User(Base):  # type: ignore
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)

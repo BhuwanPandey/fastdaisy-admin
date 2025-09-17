@@ -11,7 +11,7 @@ from datetime import timedelta
 from typing import Any, Literal, TypeVar
 
 from sqlalchemy import Column, inspect
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import RelationshipProperty, sessionmaker
 from starlette.requests import Request
 from wtforms import (
@@ -23,7 +23,7 @@ from wtforms import (
     StringField,
     TextAreaField,
 )
-from sqlalchemy.ext.asyncio import async_sessionmaker
+
 from fastdaisy_admin._types import MODEL_PROPERTY
 
 T = TypeVar("T")
@@ -103,7 +103,7 @@ def slugify_action_name(name: str) -> str:
 
 
 def shorten_name(name):
-    return name[:20] if len(name) > 20 else name
+    return f"{name[:20]} ..." if len(name) > 20 else name
 
 
 def secure_filename(filename: str) -> str:
@@ -308,7 +308,7 @@ def choice_type_coerce_factory(type_: Any) -> Callable[[Any], Any]:
     return choice_coerce
 
 
-def is_async_session_maker(session_maker: sessionmaker| async_sessionmaker) -> bool:
+def is_async_session_maker(session_maker: sessionmaker | async_sessionmaker) -> bool:
     return AsyncSession in session_maker.class_.__mro__
 
 

@@ -1,15 +1,15 @@
 from collections.abc import Callable
 from typing import Any, Protocol, runtime_checkable
 
-from sqlalchemy.engine import Engine,Connection
-from sqlalchemy.ext.asyncio import AsyncEngine,AsyncConnection
+from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 from sqlalchemy.orm import ColumnProperty, InstrumentedAttribute, RelationshipProperty
 from sqlalchemy.sql.expression import Select
 from starlette.requests import Request
 
 MODEL_PROPERTY = ColumnProperty | RelationshipProperty
 ENGINE_TYPE = Engine | AsyncEngine | Connection | AsyncConnection
-SYNC_ENGINE_TYPE = Engine | Connection 
+SYNC_ENGINE_TYPE = Engine | Connection
 ASYNC_ENGINE_TYPE = AsyncEngine | AsyncConnection
 MODEL_ATTR = str | InstrumentedAttribute
 

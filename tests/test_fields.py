@@ -22,7 +22,7 @@ from tests.common import sync_engine as engine
 Base = declarative_base()
 
 
-class User(Base): # type: ignore
+class User(Base):  # type: ignore
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)

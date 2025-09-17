@@ -8,3 +8,7 @@ class InvalidModelError(FastDaisyAdminException):
 
 class NoConverterFound(FastDaisyAdminException):
     pass
+
+
+class InvalidField(FastDaisyAdminException):
+    pass
