@@ -12,7 +12,7 @@ from typing import Any, Literal, TypeVar
 
 from sqlalchemy import Column, inspect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from sqlalchemy.orm import RelationshipProperty, sessionmaker
+from sqlalchemy.orm import MapperProperty, RelationshipProperty, sessionmaker
 from starlette.requests import Request
 from wtforms import (
     DateTimeField,
@@ -254,7 +254,7 @@ def get_column_python_type(column: Column) -> type:
         return str
 
 
-def is_relationship(prop: MODEL_PROPERTY) -> bool:
+def is_relationship(prop: MapperProperty[Any]) -> bool:
     return isinstance(prop, RelationshipProperty)
 
 

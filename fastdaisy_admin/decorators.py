@@ -45,8 +45,8 @@ def action(name: str | None) -> Callable[..., Any]:
     def wrap(func):
         title = name or func.__name__
         func._action = True
+        func._has_confirmation = False
         func._title = shorten_name(title)
-        func.name = shorten_name(func.__name__)
         return login_required(func)
 
     return wrap

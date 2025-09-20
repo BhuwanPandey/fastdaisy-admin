@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import anyio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.sql.expression import Select, and_, or_
+from sqlalchemy.sql.schema import Column
 from starlette.requests import Request
 
 from fastdaisy_admin._types import MODEL_PROPERTY
@@ -74,7 +75,7 @@ class Query:
 
     def _set_attributes_sync(self, session: Session, obj: Any, data: dict) -> Any:
         for key, value in data.items():
-            column = self.model_view._mapper.columns.get(key)
+            column = cast(Column[Any], self.model_view._mapper.columns.get(key))
             relation = self.model_view._mapper.relationships.get(key)
 
             # Set falsy values to None, if column is Nullable
@@ -103,7 +104,7 @@ class Query:
 
     async def _set_attributes_async(self, session: AsyncSession, obj: Any, data: dict) -> Any:
         for key, value in data.items():
-            column = self.model_view._mapper.columns.get(key)
+            column = cast(Column[Any], self.model_view._mapper.columns.get(key))
             relation = self.model_view._mapper.relationships.get(key)
 
             # Set falsy values to None, if column is Nullable

@@ -1,15 +1,12 @@
 from __future__ import annotations
 
+import builtins
 import json
 import time
 from collections import defaultdict
 from collections.abc import AsyncGenerator, Callable, Generator, ItemsView, Sequence
 from enum import Enum
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    ClassVar,
-)
+from typing import TYPE_CHECKING, Any, ClassVar, no_type_check
 from urllib.parse import urlencode
 
 import anyio
@@ -35,6 +32,7 @@ from fastdaisy_admin.filters import AllUniqueStringValuesFilter, BooleanFilter
 from fastdaisy_admin.formatters import BASE_FORMATTERS
 from fastdaisy_admin.forms import ModelConverter, ModelConverterBase, get_model_form
 from fastdaisy_admin.helpers import (
+    T,
     Writer,
     get_object_identifier,
     get_primary_keys,
@@ -102,7 +100,7 @@ class BaseView(BaseModelView):
     templates: ClassVar[Jinja2Templates]
     _admin_ref: ClassVar[BaseAdmin]
 
-    name: ClassVar[str] = ""
+    name: ClassVar[str]
     """Name of the view to be displayed."""
 
     divider_title: ClassVar[str] = ""
@@ -132,7 +130,47 @@ class BaseView(BaseModelView):
     """Display icon for category in the sidebar."""
 
 
-class ModelView(BaseView):
+class ModelViewMeta(type):
+    """Metaclass used to specify class variables in ModelView.
+
+    Danger:
+        This class should almost never be used directly.
+    """
+
+    @no_type_check
+    def __new__(mcls, name, bases, attrs: dict):
+        cls: type[ModelView] = super().__new__(mcls, name, bases, attrs)
+
+        model = attrs.get("model")
+
+        if not model:
+            return cls
+
+        try:
+            inspect(model)
+        except NoInspectionAvailable:
+            raise InvalidModelError(f"Class {model.__name__} is not a SQLAlchemy model.")
+
+        cls.pk_columns = get_primary_keys(model)
+        cls.identity = slugify_class_name(model.__name__)
+        cls.model = model
+
+        cls.name = attrs.get("name", cls.model.__name__).capitalize()
+        cls.name_plural = attrs.get("name_plural", f"{cls.name}s").capitalize()
+
+        mcls._check_conflicting_options(["column_list", "column_exclude_list"], attrs)
+        mcls._check_conflicting_options(["form_columns", "form_excluded_columns"], attrs)
+        mcls._check_conflicting_options(["column_export_list", "column_export_exclude_list"], attrs)
+
+        return cls
+
+    @classmethod
+    def _check_conflicting_options(mcls, keys: list[str], attrs: dict) -> None:
+        if all(k in attrs for k in keys):
+            raise AssertionError(f"Cannot use {' and '.join(keys)} together.")
+
+
+class ModelView(BaseView, metaclass=ModelViewMeta):
     """Base class for defining admnistrative behaviour for the model.
 
     ???+ usage
@@ -155,7 +193,7 @@ class ModelView(BaseView):
     is_async: ClassVar[bool] = False
     is_model: ClassVar[bool] = True
 
-    name_plural: ClassVar[str] = ""
+    name_plural: ClassVar[str]
     """Plural name of ModelView.
     Default value is Model class name + `s`.
     """
@@ -184,7 +222,7 @@ class ModelView(BaseView):
     Columns can either be string names or SQLAlchemy columns.
 
     ???+ note
-        By default only Model primary key is displayed.
+        By default only Model string representation is displayed.
 
     ???+ example
         ```python
@@ -206,7 +244,7 @@ class ModelView(BaseView):
         ```
     """
     column_display_link: ClassVar[Sequence[MODEL_ATTR]]
-    """List of columns that allow to navigate to `Edit` page.
+    """List of columns that allow user to navigate to `Edit` page.
     Columns can either be string names or SQLAlchemy columns.
 
     ???+ example
@@ -274,13 +312,13 @@ class ModelView(BaseView):
         ```
     """
     actions: ClassVar[Sequence[AdminAction]] = []
-    """Collection of the decorated functions.
+    """Collection of the decorated action functions.
 
     ???+ example
         ```python
 
         @action(name='action_name')
-        def some_action():
+        def some_action(modelview,request,objects):
             ...
 
         class UserAdmin(ModelView):
@@ -577,27 +615,17 @@ class ModelView(BaseView):
     """
 
     def __init__(self) -> None:
-        try:
-            self._mapper: Mapper = inspect(self.model)
-        except NoInspectionAvailable:
-            raise InvalidModelError(f"Class {self.model.__name__} is not a SQLAlchemy model.")
-
-        _attrs = self.__class__.__dict__
-        self.pk_columns = get_primary_keys(self.model)
-        self.identity = slugify_class_name(self.model.__name__)
-
-        self.name = _attrs.get("name", self.model.__name__).capitalize()
-        self.name_plural = _attrs.get("name_plural", f"{self.name}s").capitalize()
+        self._mapper: Mapper = inspect(self.model)
         self._has_link_column: dict[str, bool] = {}
 
         if self.model.__str__ == object.__str__:
 
-            def custom_repr(self_obj):
+            def custom_str(self_obj):
                 first_pk = [pk.name for pk in self.pk_columns][0]
                 pk = getattr(self_obj, first_pk, None)
                 return f"{self.model.__name__} object ({pk})"
 
-            setattr(self.model, "__str__", custom_repr)
+            setattr(self.model, "__str__", custom_str)
 
         if self.model.__repr__ == object.__repr__:
 
@@ -606,10 +634,6 @@ class ModelView(BaseView):
 
             setattr(self.model, "__repr__", custom_repr)
 
-        self._check_conflicting_options(["column_list", "column_exclude_list"], _attrs)
-        self._check_conflicting_options(["form_columns", "form_excluded_columns"], _attrs)
-        self._check_conflicting_options(["column_export_list", "column_export_exclude_list"], _attrs)
-
         self.sorted_attrs = sorted(self._mapper.attrs, key=lambda attr: is_relationship(attr))
         self._prop_names = [
             attr.key
@@ -617,7 +641,9 @@ class ModelView(BaseView):
             if (hasattr(attr, "columns") and not bool(attr.columns[0].foreign_keys)) or is_relationship(attr)
         ]
 
-        self._delete_relations = [rel for rel in self._mapper.relationships if "delete" in rel.cascade]
+        self._delete_relations = [
+            getattr(self.model, rel.key) for rel in self._mapper.relationships if "delete" in rel.cascade
+        ]
         self._relation_names = [relation.key for relation in self._mapper.relationships]
 
         self.model_columns = {col.name: col.type for col in self._mapper.columns}
@@ -643,10 +669,6 @@ class ModelView(BaseView):
         self._custom_actions_in_list: dict[str, AdminAction] = {}
         self._default_action = {"delete_selected": delete_selected}
         # self._custom_actions_confirmation: Dict[str, str] = {}
-
-    def _check_conflicting_options(mcls, keys: list[str], attrs: dict) -> None:
-        if all(k in attrs for k in keys):
-            raise AssertionError(f"Cannot use {' and '.join(keys)} together.")
 
     def _str_to_model(self, column: str):
         if column == "__str__":
@@ -716,7 +738,7 @@ class ModelView(BaseView):
             return formatter(value)
         return value
 
-    def validate_page_number(self, number: str | None, default: int) -> int:
+    def validate_page_number(self, number: int | None, default: int) -> int:
         if not number:
             return default
 
@@ -729,7 +751,7 @@ class ModelView(BaseView):
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid page or Page Not an Integer")
 
-    def validate_page(self, number, default):
+    def validate_page(self, number: int | str, default: int) -> int:
         try:
             num = int(number)
             if num < 1 or isinstance(num, float):
@@ -766,7 +788,7 @@ class ModelView(BaseView):
         if search or is_filter_applied:
             if search:
                 stmt = self.search_query(stmt=stmt, term=search)
-            count = await self.count(request, select(func.count()).select_from(stmt))
+            count = await self.count(request, select(func.count()).select_from(stmt.subquery()))
 
         stmt = stmt.limit(page_size).offset((page - 1) * page_size)
         rows = await self._run_query(stmt)
@@ -777,11 +799,11 @@ class ModelView(BaseView):
             per_page=page_size,
             count=count,
         )
-        pagination.is_filter_applied = is_filter_applied
-        pagination.total = total
+        pagination.is_filter_applied = is_filter_applied  # type: ignore[attr-defined]
+        pagination.total = total  # type: ignore[attr-defined]
         return pagination
 
-    async def get_model_objects(self, request: Request, limit: int | None = 0) -> list[Any]:
+    async def get_model_objects(self, request: Request, limit: int | None = 0) -> builtins.list[Any]:
         # For unlimited rows this should pass None
         limit = None if limit == 0 else limit
         stmt = self.list_query(request).limit(limit)
@@ -852,7 +874,7 @@ class ModelView(BaseView):
         return await self._get_object_by_pk(stmt)
 
     def _stmt_by_identifier(self, identifier: str) -> Select:
-        stmt = select(self.model)
+        stmt: Select = select(self.model)
         pks = get_primary_keys(self.model)
         values = object_identifier_values(identifier, self.model)
         conditions = [pk == value for (pk, value) in zip(pks, values)]
@@ -882,7 +904,7 @@ class ModelView(BaseView):
                 session.add(obj)
                 return await anyio.to_thread.run_sync(lambda: getattr(obj, prop))
 
-    def has_link(self, column_name):
+    def has_link(self, column_name) -> bool:
         if column_name in self._has_link_column:
             return self._has_link_column[column_name]
         display_link = getattr(self, "column_display_link", None)
@@ -910,7 +932,7 @@ class ModelView(BaseView):
             actions[name] = (func._title, func)
         return actions.items()
 
-    async def get_list_value(self, obj: Any, prop: str) -> tuple[Any, Any]:
+    async def get_list_value(self, obj: Any, prop: str) -> tuple[Any, Any, bool]:
         """Get tuple of (value, formatted_value) for the list view."""
 
         value = await self.get_prop_value(obj, prop)
@@ -922,10 +944,10 @@ class ModelView(BaseView):
 
     def _build_column_list(
         self,
-        defaults: list[str],
+        defaults: builtins.list[str],
         include: str | Sequence[MODEL_ATTR] | None = None,
         exclude: str | Sequence[MODEL_ATTR] | None = None,
-    ) -> list[str]:
+    ) -> builtins.list[str]:
         """This function generalizes constructing a list of columns
         for any sequence of inclusions or exclusions.
         """
@@ -938,7 +960,7 @@ class ModelView(BaseView):
             return [prop for prop in self._prop_names if prop not in exclude]
         return defaults
 
-    def get_list_columns(self) -> list[str]:
+    def get_list_columns(self) -> builtins.list[str]:
         """Get list of properties to display in List page."""
 
         column_list = getattr(self, "column_list", None)
@@ -949,7 +971,7 @@ class ModelView(BaseView):
             defaults=["__str__"],
         )
 
-    def get_form_columns(self) -> list[str]:
+    def get_form_columns(self) -> builtins.list[str]:
         """Get list of properties to display in the form."""
 
         form_columns = getattr(self, "form_columns", None)
@@ -961,7 +983,7 @@ class ModelView(BaseView):
             defaults=self._prop_names,
         )
 
-    def get_export_columns(self) -> list[str]:
+    def get_export_columns(self) -> builtins.list[str]:
         """Get list of properties to export."""
 
         columns = getattr(self, "column_export_list", None)
@@ -984,14 +1006,14 @@ class ModelView(BaseView):
             return "multiple"
         return ""
 
-    def get_filter_for_column(self, columns: list | tuple) -> list[ColumnFilter]:
-        filters = []
+    def get_filter_for_column(self, columns: Sequence[MODEL_ATTR]) -> builtins.list[ColumnFilter]:
+        filters: builtins.list[ColumnFilter] = []
         for column in columns:
             if isinstance(column, str) and column in self.model_columns:
                 col_type = type(self.model_columns.get(column))
             elif (
                 isinstance(column, InstrumentedAttribute)
-                and issubclass(column.class_, self.model)
+                and issubclass(column.class_, self.model)  # type: ignore [arg-type]
                 and column.key in self.model_columns
             ):
                 col_type = type(self.model_columns.get(column.name))
@@ -1003,13 +1025,11 @@ class ModelView(BaseView):
                 filters.append(AllUniqueStringValuesFilter(column))
         return filters
 
-    def get_filters(self) -> list[ColumnFilter]:
+    def get_filters(self) -> builtins.list[ColumnFilter]:
         """Get list of filters."""
 
-        filters = getattr(self, "column_filters", None)
-        if not filters:
-            return []
-        filters = self.get_filter_for_column(filters)
+        fields: Sequence[MODEL_ATTR] = getattr(self, "column_filters")
+        filters = self.get_filter_for_column(fields)
         return filters
 
     async def on_model_change(self, data: dict, model: Any, is_created: bool, request: Request) -> None:
@@ -1051,7 +1071,7 @@ class ModelView(BaseView):
         By default do nothing.
         """
 
-    async def scaffold_form(self, rules: list[str] | None = None) -> type[Form]:
+    async def scaffold_form(self, rules: builtins.list[str] | None = None) -> type[Form]:
         if self.form is not None:
             return self.form
 
@@ -1178,7 +1198,7 @@ class ModelView(BaseView):
 
     async def export_data(
         self,
-        data: list[Any],
+        data: builtins.list[T],
         export_type: str = "csv",
     ) -> StreamingResponse:
         if export_type == "csv":
@@ -1189,7 +1209,7 @@ class ModelView(BaseView):
 
     async def _export_csv(
         self,
-        data: list[Any],
+        data: builtins.list[T],
     ) -> StreamingResponse:
         async def generate(writer: Writer) -> AsyncGenerator[Any, None]:
             # Append the column titles at the beginning
@@ -1211,7 +1231,7 @@ class ModelView(BaseView):
 
     async def _export_json(
         self,
-        data: list[Any],
+        data: builtins.list[T],
     ) -> StreamingResponse:
         async def generate() -> AsyncGenerator[str, None]:
             yield "["
@@ -1240,17 +1260,12 @@ class ModelView(BaseView):
             self._form_create_rules = self.form_create_rules
             self._form_edit_rules = self.form_edit_rules
 
-    def _validate_form_class(self, ruleset: list[Any], form_class: type[Form]) -> None:
+    def _validate_form_class(self, ruleset: builtins.list[Any], form_class: type[Form]) -> None:
         form_fields = []
         for name, obj in form_class.__dict__.items():
             if isinstance(obj, UnboundField):
                 form_fields.append(name)
 
-        missing_fields = []
-        if ruleset:
-            for field_name in form_fields:
-                if field_name not in ruleset:
-                    missing_fields.append(field_name)
-
+        missing_fields = [field_name for field_name in form_fields if field_name not in ruleset]
         for field_name in missing_fields:
             delattr(form_class, field_name)

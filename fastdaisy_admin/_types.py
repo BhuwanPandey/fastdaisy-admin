@@ -21,17 +21,17 @@ class ColumnFilter(Protocol):
 
     async def lookups(
         self, request: Request, model: Any, run_query: Callable[[Select], Any]
-    ) -> list[tuple[str, str]]: ...
+    ) -> list[tuple[str, bool, str]]: ...
 
     async def get_filtered_query(self, query: Select, value: Any, model: Any) -> Select: ...
+
+    def get_query_values(self, request): ...
 
 
 @runtime_checkable
 class AdminAction(Protocol):
     _action: bool
-    _slug: str
-    _label: str
-    _include_in_schema: bool
-    _add_in_list: bool
+    _title: str
+    _has_confirmation: bool
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any: ...

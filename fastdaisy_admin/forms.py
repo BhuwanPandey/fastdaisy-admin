@@ -7,12 +7,7 @@ from __future__ import annotations
 import enum
 import inspect
 from collections.abc import Callable, Sequence
-from typing import (
-    Any,
-    Protocol,
-    TypeVar,
-    no_type_check,
-)
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar, no_type_check
 
 import anyio
 from sqlalchemy import Boolean, select
@@ -62,6 +57,9 @@ from fastdaisy_admin.helpers import (
     is_async_session_maker,
     is_relationship,
 )
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import async_sessionmaker
 
 
 class Validator(Protocol):
@@ -116,7 +114,7 @@ class ModelConverterBase:
     async def _prepare_kwargs(
         self,
         prop: MODEL_PROPERTY,
-        session_maker: sessionmaker,
+        session_maker: sessionmaker | async_sessionmaker,
         field_args: dict[str, Any],
         field_widget_args: dict[str, Any],
         label: str | None = None,
@@ -180,7 +178,7 @@ class ModelConverterBase:
         return kwargs
 
     async def _prepare_relationship(
-        self, prop: RelationshipProperty, kwargs: dict, session_maker: sessionmaker
+        self, prop: RelationshipProperty, kwargs: dict, session_maker: sessionmaker | async_sessionmaker
     ) -> dict:
         nullable = True
         if not prop.local_remote_pairs is None:
@@ -197,7 +195,7 @@ class ModelConverterBase:
     async def _prepare_select_options(
         self,
         prop: RelationshipProperty,
-        session_maker: sessionmaker,
+        session_maker: sessionmaker | async_sessionmaker,
     ) -> list[tuple[str, Any]]:
         target_model = prop.mapper.class_
         stmt = select(target_model)
@@ -249,7 +247,7 @@ class ModelConverterBase:
         self,
         model: type,
         prop: MODEL_PROPERTY,
-        session_maker: sessionmaker,
+        session_maker: sessionmaker | async_sessionmaker,
         field_args: dict[str, Any],
         field_widget_args: dict[str, Any],
         label: str | None = None,
@@ -286,13 +284,16 @@ class ModelConverterBase:
         return str(get_object_identifier(o))
 
 
+from sqlalchemy import String
+
+
 class ModelConverter(ModelConverterBase):
     @staticmethod
     def _string_common(prop: ColumnProperty) -> list[Validator]:
         li = []
         column = prop.columns[0]
-        # TODO: For mypy
-        if isinstance(column.type.length, int) and column.type.length:
+
+        if isinstance(column.type, String) and column.type.length:
             li.append(validators.Length(max=column.type.length))
         return li
 
@@ -338,7 +339,7 @@ class ModelConverter(ModelConverterBase):
 
     @converts("Enum")
     def conv_enum(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
-        available_choices = [(e, e) for e in prop.columns[0].type.enums]
+        available_choices = [(e, e) for e in prop.columns[0].type.enums]  # type: ignore [attr-defined]
         accepted_values = [choice[0] for choice in available_choices]
 
         if prop.columns[0].nullable:
@@ -429,7 +430,7 @@ class ModelConverter(ModelConverterBase):
     @converts("sqlalchemy_utils.types.timezone.TimezoneType")
     def conv_timezone(self, model: type, prop: ColumnProperty, kwargs: dict[str, Any]) -> UnboundField:
         kwargs.setdefault("validators", [])
-        kwargs["validators"].append(TimezoneValidator(coerce_function=prop.columns[0].type._coerce))
+        kwargs["validators"].append(TimezoneValidator(coerce_function=prop.columns[0].type._coerce))  # type: ignore [attr-defined]
         return StringField(**kwargs)
 
     @converts("sqlalchemy_utils.types.phone_number.PhoneNumberType")
@@ -496,7 +497,7 @@ class ModelConverter(ModelConverterBase):
 
 async def get_model_form(
     model: type,
-    session_maker: sessionmaker,
+    session_maker: sessionmaker | async_sessionmaker,
     only: Sequence[str] | None = None,
     exclude: Sequence[str] | None = None,
     column_labels: dict[str, str] | None = None,
