@@ -10,7 +10,7 @@ from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any, Protocol, TypeVar, no_type_check
 
 import anyio
-from sqlalchemy import Boolean, select
+from sqlalchemy import Boolean, String, select
 from sqlalchemy import inspect as sqlalchemy_inspect
 from sqlalchemy.orm import (
     ColumnProperty,
@@ -210,7 +210,6 @@ class ModelConverterBase:
                 return [(str(self._get_identifier_value(obj)), str(obj)) for obj in objects.scalars().unique().all()]
 
     def get_converter(self, prop: MODEL_PROPERTY) -> ConverterCallable:
-        # TODO:
         if isinstance(prop, RelationshipProperty):
             direction = get_direction(prop)
             return self._converters[direction]
@@ -282,9 +281,6 @@ class ModelConverterBase:
 
     def _get_identifier_value(self, o: Any) -> str:
         return str(get_object_identifier(o))
-
-
-from sqlalchemy import String
 
 
 class ModelConverter(ModelConverterBase):

@@ -40,9 +40,6 @@ from fastdaisy_admin.helpers import (
 from fastdaisy_admin.models import BaseView, ModelView
 from fastdaisy_admin.templating import Jinja2Templates
 
-# if TYPE_CHECKING:
-#     from sqlalchemy.ext.asyncio import async_sessionmaker
-
 __all__ = [
     "Admin",
 ]
@@ -116,8 +113,8 @@ class BaseAdmin:
         templates.env.globals["is_list"] = lambda x: isinstance(x, list)
         templates.env.globals["get_object_identifier"] = get_object_identifier
         templates.env.globals["get_messages"] = get_messages
-        templates.env.filters["apply_class"] = apply_class
         templates.env.globals["get_pk"] = get_pk
+        templates.env.filters["apply_class"] = apply_class
         return templates
 
     @property
@@ -198,7 +195,7 @@ class BaseAdmin:
     def add_model_view(self, view: type[ModelView]) -> None:
         """Add ModelView to the Admin.
 
-        ???+ usage
+        **Example**
             ```python
             from fastdaisy_admin import Admin, ModelView
 
@@ -225,7 +222,7 @@ class BaseAdmin:
     def add_base_view(self, view: type[BaseView]) -> None:
         """Add BaseView to the Admin.
 
-        ???+ usage
+        **Example**
             ```python
             from fastdaisy_admin import BaseView, expose
 
@@ -272,11 +269,6 @@ class BaseAdminView(BaseAdmin):
         if model_view.only_view or not model_view.can_create or not model_view.is_accessible(request):
             raise HTTPException(status_code=403)
 
-    async def _details(self, request: Request) -> None:
-        model_view = self._find_model_view(request.path_params["identity"])
-        if not model_view.is_accessible(request):
-            raise HTTPException(status_code=403)
-
     async def _delete(self, request: Request) -> None:
         model_view = self._find_model_view(request.path_params["identity"])
         if not model_view.can_delete or not model_view.is_accessible(request):
@@ -298,7 +290,7 @@ class BaseAdminView(BaseAdmin):
 class Admin(BaseAdminView):
     """Main entrypoint to admin interface.
 
-    ???+ usage
+    **Example**
         ```python
         from fastapi import FastAPI
         from fastdaisy_admin import Admin, ModelView
@@ -307,7 +299,8 @@ class Admin(BaseAdminView):
 
 
         app = FastAPI()
-        admin = Admin(app, engine)
+        secret_key = "SECRET"
+        admin = Admin(app, secret_key, engine)
 
 
         class UserAdmin(ModelView):
@@ -376,12 +369,6 @@ class Admin(BaseAdminView):
             Route("/", endpoint=self.index, name="index"),
             Route("/{identity}/list", endpoint=self.list, name="list", methods=["GET", "POST"]),
             Route(
-                "/{identity}/delete/{pk:path}",
-                endpoint=self.delete,
-                name="delete",
-                methods=["GET", "POST"],
-            ),
-            Route(
                 "/{identity}/create",
                 endpoint=self.create,
                 name="create",
@@ -393,6 +380,12 @@ class Admin(BaseAdminView):
                 name="edit",
                 methods=["GET", "POST"],
             ),
+            Route(
+                "/{identity}/delete/{pk:path}",
+                endpoint=self.delete,
+                name="delete",
+                methods=["GET", "POST"],
+            ),
             Route("/{identity}/export/{export_type}", endpoint=self.export, name="export"),
             Route("/login", endpoint=self.login, name="login", methods=["GET", "POST"]),
             Route("/logout", endpoint=self.logout, name="logout", methods=["POST"]),
@@ -400,8 +393,7 @@ class Admin(BaseAdminView):
 
         self.admin.router.routes = routes
         self.admin.exception_handlers = {HTTPException: http_exception}
-        # self.admin.debug = debug
-        self.admin.debug = True
+        self.admin.debug = debug
 
         self.app.mount(base_url, app=self.admin, name="admin")
 
@@ -439,34 +431,6 @@ class Admin(BaseAdminView):
             return RedirectResponse(request.url.include_query_params(page=pagination.page), status_code=302)
         context = {"model_view": model_view, "pagination": pagination}
         return await self.templates.TemplateResponse(request, model_view.list_template, context)
-
-    @login_required
-    async def delete(self, request: Request) -> Response:
-        """Delete route."""
-        await self._delete(request)
-
-        identity = request.path_params["identity"]
-        model_view = self._find_model_view(identity)
-        pk = request.path_params["pk"]
-        model = await model_view.get_object_for_delete(pk)
-        if not model:
-            raise HTTPException(status_code=404)
-        to_delete = await model_view.get_deleted_objects([model])
-
-        if request.method == "POST":
-            await model_view.delete_model(request, pk)
-            url = URL(str(request.url_for("admin:list", identity=identity)))
-            return RedirectResponse(url=url, status_code=302)
-
-        model_count = {model: len(objs) for model, objs in dict(to_delete).items()}
-        context = {
-            "obj": model,
-            "identity": identity,
-            "model_view": model_view,
-            "model_count": dict(model_count).items(),
-            "to_delete": dict(to_delete).items(),
-        }
-        return await self.templates.TemplateResponse(request, "fastdaisy_admin/delete_confirmation.html", context)
 
     @login_required
     async def create(self, request: Request) -> Response:
@@ -523,8 +487,7 @@ class Admin(BaseAdminView):
 
         form = Form(obj=model, data=self._normalize_wtform_data(model))
         context = {
-            "obj": model,
-            "identity": identity,
+            "model": model,
             "model_view": model_view,
             "form": form,
         }
@@ -558,6 +521,33 @@ class Admin(BaseAdminView):
         return RedirectResponse(url=url, status_code=302)
 
     @login_required
+    async def delete(self, request: Request) -> Response:
+        """Delete route."""
+        await self._delete(request)
+
+        identity = request.path_params["identity"]
+        model_view = self._find_model_view(identity)
+        pk = request.path_params["pk"]
+        model = await model_view.get_object_for_delete(pk)
+        if not model:
+            raise HTTPException(status_code=404)
+        to_delete = await model_view.get_deleted_objects([model])
+
+        if request.method == "POST":
+            await model_view.delete_model(request, pk)
+            url = URL(str(request.url_for("admin:list", identity=identity)))
+            return RedirectResponse(url=url, status_code=302)
+
+        model_count = {model: len(objs) for model, objs in dict(to_delete).items()}
+        context = {
+            "model": model,
+            "model_view": model_view,
+            "model_count": dict(model_count).items(),
+            "to_delete": dict(to_delete).items(),
+        }
+        return await self.templates.TemplateResponse(request, "fastdaisy_admin/delete_confirmation.html", context)
+
+    @login_required
     async def export(self, request: Request) -> Response:
         """Export model endpoint."""
 
@@ -569,16 +559,6 @@ class Admin(BaseAdminView):
         model_view = self._find_model_view(identity)
         rows = await model_view.get_model_objects(request=request, limit=model_view.export_max_rows)
         return await model_view.export_data(rows, export_type=export_type)
-
-    async def response_action(self, form, request: Request, model_view: ModelView):
-        selected = form.getlist("_selected_action")
-        action = form.get("action")
-        action_entry = cast(tuple[str, Callable], dict(model_view.get_actions).get(action))
-        func = action_entry[1]
-        objects = await model_view.get_model_objects_with_pk(selected)
-        request.state.form = form
-        response = await func(model_view, request, objects)
-        return response
 
     async def login(self, request: Request) -> Response:
         assert self.authentication_backend is not None
@@ -603,6 +583,16 @@ class Admin(BaseAdminView):
 
         url = str(request.url_for("admin:login"))
         return JSONResponse({"redirect_url": url})
+
+    async def response_action(self, form, request: Request, model_view: ModelView):
+        selected = form.getlist("_selected_action")
+        action = form.get("action")
+        action_entry = cast(tuple[str, Callable], dict(model_view.get_actions).get(action))
+        func = action_entry[1]
+        objects = await model_view.get_model_objects_with_pk(selected)
+        request.state.form = form
+        response = await func(model_view, request, objects)
+        return response
 
     async def _handle_form_data(self, request: Request, obj: Any = None) -> FormData:
         """

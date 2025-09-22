@@ -9,7 +9,6 @@ from starlette.requests import Request
 
 MODEL_PROPERTY = ColumnProperty | RelationshipProperty
 ENGINE_TYPE = Engine | AsyncEngine | Connection | AsyncConnection
-SYNC_ENGINE_TYPE = Engine | Connection
 ASYNC_ENGINE_TYPE = AsyncEngine | AsyncConnection
 MODEL_ATTR = str | InstrumentedAttribute
 

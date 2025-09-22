@@ -97,7 +97,7 @@ class Menu:
                 root.children.append(*item.children)
                 return
         self.items.append(item)
-        # TODO: Handle None on self.divider
+
         if item.divider not in self.divider:
             self.divider[item.divider] = [item]
         else:

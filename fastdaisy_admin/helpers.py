@@ -84,15 +84,12 @@ postgres_interval_re = re.compile(
 )
 
 
-def prettify_class_name(name: str) -> str:
-    return re.sub(r"(?<=.)([A-Z])", r" \1", name)
-
-
 def slugify_class_name(name: str) -> str:
     dashed = re.sub("(.)([A-Z][a-z]+)", r"\1-\2", name)
     return re.sub("([a-z0-9])([A-Z])", r"\1-\2", dashed).lower()
 
 
+# TODO: unused
 def slugify_action_name(name: str) -> str:
     if not re.search(r"^[A-Za-z0-9 \-_]+$", name):
         raise ValueError(

@@ -32,6 +32,7 @@ def get_column_obj(column: MODEL_ATTR, model: Any = None) -> Any:
     return column
 
 
+""" TODO:(Future use)
 def get_foreign_column_name(column_obj: Any) -> str:
     fk = next(iter(column_obj.foreign_keys))
     return fk.column.name
@@ -39,6 +40,7 @@ def get_foreign_column_name(column_obj: Any) -> str:
 
 def get_model_from_column(column: Any) -> Any:
     return column.parent.class_
+"""
 
 
 class BooleanFilter:
