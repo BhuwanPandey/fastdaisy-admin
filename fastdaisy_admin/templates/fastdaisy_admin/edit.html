@@ -10,8 +10,8 @@
         <div class="text-sm max-md:hidden breadcrumbs">
         <ul>
                 <li><a href="{{ url_for('admin:index') }}" class="link link-hover">Dashboard</a></li>
-                <li><a href="{{ url_for('admin:list',identity=identity) }}"class="link link-hover">{{model_view.name}}</a></li>
-                <li>{{ obj|string | truncate(40) }}</li>
+                <li><a href="{{ url_for('admin:list',identity=model_view.identity) }}"class="link link-hover">{{model_view.name}}</a></li>
+                <li>{{ model|string | truncate(40) }}</li>
             </ul>
         </div>
         </div>
@@ -20,7 +20,7 @@
 
 {% block container %}
 <div id="content-main" class="border-base-200 mt-3">
-  <form action="{{ model_view._build_url_for('admin:edit', request, obj) }}" method="POST"
+  <form action="{{ model_view._build_url_for('admin:edit', request, model) }}" method="POST"
         enctype="multipart/form-data"
         class="w-full h-full">
     <div class="grid grid-cols-1">
@@ -88,7 +88,7 @@
           </div>
           {% if model_view.can_delete %}
             <div class="text-end">
-              <a href="{{ model_view._build_url_for('admin:delete',request, obj) }}"
+              <a href="{{ model_view._build_url_for('admin:delete',request, model) }}"
                 class="btn-sm btn-block btn-error error-content btn rounded-md place-self-end">
                 Delete
                 <i class="fa fa-xmark"></i>
@@ -97,7 +97,7 @@
           {% endif %}
           {% else %}
           <div class="text-end">
-                <a href="{{ url_for('admin:list',identity=identity) }}"
+                <a href="{{ url_for('admin:list',identity=model_view.identity) }}"
                   class="btn-sm btn-block mt-1 btn rounded-md btn-info">Close</a>
               </div>
           {% endif %}
@@ -151,7 +151,7 @@
             </button>
 
           {% else %}
-            <a href="{{ url_for('admin:list',identity=identity) }}"
+            <a href="{{ url_for('admin:list',identity=model_view.identity) }}"
               class="btn-sm btn-info btn-wide btn rounded-md">
                   Close
               </a>

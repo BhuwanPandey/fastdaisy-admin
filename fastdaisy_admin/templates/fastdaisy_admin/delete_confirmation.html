@@ -6,8 +6,8 @@
         <div class="text-sm max-md:hidden breadcrumbs">
         <ul>
                 <li><a href="{{ url_for('admin:index') }}" class="link link-hover">Dashboard</a></li>
-                <li><a href="{{ url_for('admin:list',identity=identity) }}"class="link link-hover">{{model_view.name}}</a></li>
-                <li>{{ obj|string | truncate(40) }}</li>
+                <li><a href="{{ url_for('admin:list',identity=model_view.identity) }}"class="link link-hover">{{model_view.name}}</a></li>
+                <li>{{ model|string | truncate(40) }}</li>
             </ul>
         </div>
         </div>
@@ -16,7 +16,7 @@
 
 {% block container %}
     <div class="card w-full bg-base-100 shadow-xl my-6 p-6">
-        <p>Are you sure you want to delete the {{ model_view.name }} '{{ obj|string }}'? All of the following related items will be deleted:</p>
+        <p>Are you sure you want to delete the {{ model_view.name }} '{{ model|string }}'? All of the following related items will be deleted:</p>
             <h2>Summary</h2>
             <ul>
                 {% for model_name, object_count in model_count %}
