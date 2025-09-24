@@ -137,7 +137,7 @@
               {% endif %}
 
               {% if model_view.can_delete %}
-              <a href="{{ model_view._build_url_for('admin:delete',request, obj) }}"
+              <a href="{{ model_view._build_url_for('admin:delete',request, model) }}"
               class="btn-sm btn-block btn-error error-content btn rounded-md place-self-end">
               Delete
               <i class="fa fa-xmark"></i>
