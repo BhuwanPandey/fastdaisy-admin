@@ -214,7 +214,7 @@ def test_form_columns_default() -> None:
     class UserAdmin(ModelView):
         model = User
 
-    assert UserAdmin().get_form_columns() == ["id", "name", "addresses", "profile", "groups"]
+    assert UserAdmin().get_form_columns() == ["addresses", "profile", "groups", "id", "name"]
 
 
 def test_form_columns_by_model_columns() -> None:
@@ -249,7 +249,7 @@ def test_form_excluded_columns_by_str_name() -> None:
         model = User
         form_excluded_columns = ["id"]
 
-    assert UserAdmin().get_form_columns() == ["name", "addresses", "profile", "groups"]
+    assert UserAdmin().get_form_columns() == ["addresses", "profile", "groups", "name"]
 
 
 def test_form_excluded_columns_by_model_column() -> None:
@@ -257,7 +257,7 @@ def test_form_excluded_columns_by_model_column() -> None:
         model = User
         form_excluded_columns = [User.id]
 
-    assert UserAdmin().get_form_columns() == ["name", "addresses", "profile", "groups"]
+    assert UserAdmin().get_form_columns() == ["addresses", "profile", "groups", "name"]
 
 
 def test_export_columns_default() -> None:

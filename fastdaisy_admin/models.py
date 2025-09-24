@@ -7,7 +7,6 @@ from collections import defaultdict
 from collections.abc import AsyncGenerator, Callable, Generator, ItemsView, Sequence
 from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar, no_type_check
-from urllib.parse import urlencode
 
 import anyio
 from sqlalchemy import Boolean, Column, String, asc, cast, desc, func, inspect, or_
@@ -634,10 +633,9 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
 
             setattr(self.model, "__repr__", custom_repr)
 
-        self.sorted_attrs = sorted(self._mapper.attrs, key=lambda attr: is_relationship(attr))
         self._prop_names = [
             attr.key
-            for attr in self.sorted_attrs
+            for attr in self._mapper.attrs
             if (hasattr(attr, "columns") and not bool(attr.columns[0].foreign_keys)) or is_relationship(attr)
         ]
 
@@ -701,15 +699,6 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
                 return result.scalars().unique().all()
         else:
             return await anyio.to_thread.run_sync(self._run_query_sync, stmt)
-
-    def _url_for_delete(self, request: Request, obj: Any) -> str:
-        pk = get_object_identifier(obj)
-        query_params = urlencode({"pks": pk})
-        url = request.url_for("admin:delete", identity=slugify_class_name(obj.__class__.__name__))
-        return str(url) + "?" + query_params
-
-    def _url_for_action(self, request: Request, action_name: str) -> str:
-        return str(request.url_for(f"admin:action-{self.identity}-{action_name}"))
 
     def _build_url_for(self, name: str, request: Request, obj: Any) -> URL:
         return request.url_for(
@@ -942,6 +931,17 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
 
         return value, formatted_value, has_column_link
 
+    def reorder_columns(self, col: list[str]) -> list[str]:
+        """
+        Reorders columns such that relationship fields always at last position
+        """
+        original_set = set(col)
+        to_move_set = set(self._relation_names)
+        valid_to_move = [item for item in self._relation_names if item in original_set]
+        reordered = [item for item in col if item not in to_move_set]
+
+        return reordered + valid_to_move
+
     def _build_column_list(
         self,
         defaults: builtins.list[str],
@@ -965,11 +965,13 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
 
         column_list = getattr(self, "column_list", None)
         column_exclude_list = getattr(self, "column_exclude_list", None)
-        return self._build_column_list(
+        columns = self._build_column_list(
             include=column_list,
             exclude=column_exclude_list,
             defaults=["__str__"],
         )
+        ordered_columns = self.reorder_columns(columns)
+        return ordered_columns
 
     def get_form_columns(self) -> builtins.list[str]:
         """Get list of properties to display in the form."""
@@ -989,11 +991,13 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
         columns = getattr(self, "column_export_list", None)
         excluded_columns = getattr(self, "column_export_exclude_list", None)
 
-        return self._build_column_list(
+        columns = self._build_column_list(
             include=columns,
             exclude=excluded_columns,
             defaults=self._list_prop_names,
         )
+        ordered_columns = self.reorder_columns(columns)
+        return ordered_columns
 
     def get_column_type(self, column_name):
         """Return the column type class of a given model and column name."""
