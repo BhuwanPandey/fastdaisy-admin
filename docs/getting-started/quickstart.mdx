@@ -41,8 +41,8 @@ from fastdaisy_admin import Admin, ModelView
 
 
 app = Starlette()
-admin = Admin(app, engine)
-
+secret_key = "secret_key"
+admin = Admin(app, secret_key, engine)
 
 class UserAdmin(ModelView):
     model = User
@@ -60,7 +60,8 @@ from fastdaisy_admin import Admin, ModelView
 
 
 app = FastAPI()
-admin = Admin(app, engine)
+secret_key = "secret_key"
+admin = Admin(app, secret_key, engine)
 
 
 class UserAdmin(ModelView, model=User):

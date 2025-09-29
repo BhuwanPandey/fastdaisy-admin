@@ -26,7 +26,12 @@
       },
       {
         "group": "Configurations",
-        "pages": ["configurations/perms", "configurations/pages", "configurations/tem_events"]
+        "pages": [
+          "configurations/perms", 
+          "configurations/pages", 
+          "configurations/tem_events", 
+          "configurations/custom_view"
+        ]
       },
       {
         "group": "Others",

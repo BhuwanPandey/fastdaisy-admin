@@ -59,7 +59,7 @@ from fastdaisy_admin import BaseView, action
 @action(
         name="Export Json"
     )
-async def export_to_json(modelview, request,objs):
+async def export_to_json(modelview, request, objs):
     data = [
         {"id": u.id, "name": u.name, "email": u.email, "is_active": u.is_admin}
         for u in objs
@@ -77,3 +77,8 @@ class UserAdmin(ModelView):
 admin.add_view(UserAdmin)
 
 ```
+
+In the above example, we created `export_to_json` function, It can be define anywhere which should contain three argument.
+- `modelview`: Instance of ModelView
+- `request`: It's a HTTP request
+- `objs`: Selected objects of respective modelview

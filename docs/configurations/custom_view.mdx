@@ -1,0 +1,167 @@
+---
+title: Custom Views
+icon: eye
+---
+
+## Working with Custom Views
+
+### BaseView
+To add custom views to the Admin interface where you want to access database and SQLAlchemy models, you can use the `BaseView`.
+Here' an example
+
+```python
+
+from sqlalchemy import Column, Integer, String, select, func
+from sqlalchemy.orm import sessionmaker, declarative_base
+from fastdaisy_admin import Admin, BaseView, expose
+from starlette.applications import Starlette
+
+Base = declarative_base()
+engine = create_engine(
+    "sqlite:///example.db",
+    connect_args={"check_same_thread": False},
+)
+Session = sessionmaker(bind=engine)
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(length=16))
+
+
+Base.metadata.create_all(engine)  # Create tables
+
+secret_key = "secret_key"
+app = Starlette()
+admin = Admin(app=app, secret_key=secret_key, engine=engine)
+
+
+class ReportView(BaseView):
+    name = "Report Page"
+    icon = "fa-solid fa-chart-line"
+
+    @expose("/report", methods=["GET"])
+    async def report_page(self, request):
+
+        with Session(expire_on_commit=False) as session:
+            stmt = select(func.count(User.id))
+            result = session.execute(stmt)
+            users_count = result.scalar_one()
+
+        return await self.templates.TemplateResponse(
+            request,
+            "report.html",
+            context={"users_count": users_count, 'model_view':self},
+        )
+
+
+admin.add_view(ReportView)
+
+```
+you can create `report.html` inside `templates` directory with the following content
+
+```html
+{% extends "fastdaisy_admin/layout.html" %}
+
+{% block head %}
+    <title>{{ admin.title }} - Report</title>
+{% endblock %}
+
+{% block breadcrumbs %}
+    <div class="flex items-center max-md:p-3 p-5 pb-0 flex-wrap justify-between">
+        <div class="text-sm max-md:hidden breadcrumbs">
+        <ul>
+            <li><a href="{{ url_for('admin:index') }}" class="link link-hover">Dashboard</a></li>
+            <li><a href="{{ url_for('admin:list',identity=model_view.identity) }}"class="link link-hover">{{model_view.name}}</a></li>
+        </ul>
+        </div>
+    </div>
+{% endblock %}
+
+{% block container %}
+
+<div class="w-full">
+  <div class="card bg-base-100 shadow-md">
+    <div class="card-body border-b">
+      <h3 class="card-title text-lg font-semibold">User reports</h3>
+      <p>Users count: {{ users_count }}</p>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+```
+
+If you want to use a custom `templates` directory name, you can change that with:
+
+```python
+from fastdaisy_admin import Admin
+
+admin = Admin(templates_dir="my_templates", ...)
+
+```
+
+Now visiting /admin/report you can render your report.html file.
+
+
+### ModelView
+
+You can also add extra endpoint in modelview with the help of `expose` decorator. The path is in this case prepended with the view's identity. 
+i.e `/admin/user/profile/{pk}`
+
+```python {5,14-16}
+from markupsafe import Markup
+from fastdaisy_admin import ModelView, expose
+
+class UserView(ModelView):
+    column_list = [User.id, User.name, "detail"]
+
+    @expose("/profile/{pk}", methods=["GET"])
+    async def profile(self, request):
+        user: User = await self.get_object_for_edit(request)
+        return await self.templates.TemplateResponse(
+            request, "user.html", {"user": user, "model_view":self}
+        )
+
+    def detail(self,obj):
+        url = f'profile/{obj.id}'
+        return Markup(f'<a href="{url}">📝</a>')
+    
+admin.add_view(UserView)
+
+```
+
+In the above example, By adding `detail` method in column_list will display link that lead to custom view. Keep in the mind that, method must contain
+one argument, in our case is `user object`.
+
+`user.html` inside `templates` directory contains
+
+```html
+{% extends "fastdaisy_admin/layout.html" %}
+
+{% block head %}
+    <title>{{ admin.title }} - Profile </title>
+{% endblock %}
+
+{% block breadcrumbs %}
+    <div class="flex items-center max-md:p-3 p-5 pb-0 flex-wrap justify-between">
+        <div class="text-sm max-md:hidden breadcrumbs">
+        <ul>
+            <li><a href="{{ url_for('admin:index') }}" class="link link-hover">Dashboard</a></li>
+            <li><a href="{{ url_for('admin:list',identity=model_view.identity) }}"class="link link-hover">{{model_view.name}}</a></li>
+            <li>{{ user | string | truncate(40) }}</li>
+        </ul>
+        </div>
+    </div>
+{% endblock %}
+
+
+{% block container %}
+
+-------------- Your Content    ------------------
+
+{% endblock %}
+
+
+```
