@@ -18,6 +18,7 @@ from starlette.requests import Request
 from starlette.testclient import TestClient
 
 from fastdaisy_admin import Admin, ModelView, expose
+from fastdaisy_admin.exceptions import InvalidModelError
 from fastdaisy_admin.filters import (
     AllUniqueStringValuesFilter,
 )
@@ -108,15 +109,15 @@ def client() -> Generator[TestClient, None, None]:
         yield c
 
 
-# def test_setup_with_invalid_sqlalchemy_model() -> None:
-#     with pytest.raises(InvalidModelError) as exc:
+def test_setup_with_invalid_sqlalchemy_model() -> None:
+    with pytest.raises(InvalidModelError) as exc:
 
-#         class AddressAdmin(ModelView):
-#             model=Starlette
+        class AddressAdmin(ModelView):
+            model = Starlette
 
-#         AddressAdmin()
+        AddressAdmin()
 
-#     assert exc.match("Class Starlette is not a SQLAlchemy model.")
+    assert exc.match("Class Starlette is not a SQLAlchemy model.")
 
 
 def test_column_list_default() -> None:
@@ -233,15 +234,15 @@ def test_form_columns_by_str_name() -> None:
     assert AddressAdmin().get_form_columns() == ["id", "user_id"]
 
 
-# def test_form_columns_both_include_and_exclude() -> None:
-#     with pytest.raises(AssertionError) as exc:
+def test_form_columns_both_include_and_exclude() -> None:
+    with pytest.raises(AssertionError) as exc:
 
-#         class InvalidAdmin(ModelView):
-#             model=User
-#             form_columns = ["id"]
-#             form_excluded_columns = ["name"]
+        class InvalidAdmin(ModelView):
+            model = User
+            form_columns = ["id"]
+            form_excluded_columns = ["name"]
 
-#     assert exc.match("Cannot use form_columns and form_excluded_columns together.")
+    assert exc.match("Cannot use form_columns and form_excluded_columns together.")
 
 
 def test_form_excluded_columns_by_str_name() -> None:
@@ -480,16 +481,23 @@ def test_search_query() -> None:
     assert "lower(CAST(profiles.role AS VARCHAR))" in str(stmt)
 
 
-def test_expose_decorator(client: TestClient) -> None:
+async def test_expose_decorator(client: TestClient) -> None:
     class UserAdmin(ModelView):
         model = User
+        column_list = ["id", "detail"]
 
         @expose("/profile/{pk}")
         async def profile(self, request: Request):
             user: User = await self.get_object_for_edit(request)
             return await self.templates.TemplateResponse(request, "user.html", {"user": user})
 
+        def detail(self, obj):
+            url = f"profile/{obj.id}"
+            return url
+
     admin.add_view(UserAdmin)
+    user = User(id=1, name="batman")
+    assert await UserAdmin().get_prop_value(user, "detail") == "profile/1"
 
     with pytest.raises(TemplateNotFound, match="user.html"):
         client.get("/admin/user/profile/1")

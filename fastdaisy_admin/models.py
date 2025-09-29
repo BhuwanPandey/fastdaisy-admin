@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import builtins
+import inspect as inzpect
 import json
 import time
 from collections import defaultdict
@@ -119,7 +120,7 @@ class BaseView(BaseModelView):
 
     icon: ClassVar[str] = ""
     """Display icon for ModelAdmin in the sidebar.
-    Currently only supports FontAwesome and Tabler icons.
+    Currently only supports FontAwesome icons.
     """
 
     category: ClassVar[str] = ""
@@ -615,7 +616,7 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
 
     def __init__(self) -> None:
         self._mapper: Mapper = inspect(self.model)
-        self._has_link_column: dict[str, bool] = {}
+        self._has_column_link: dict[str, bool] = {}
 
         if self.model.__str__ == object.__str__:
 
@@ -870,6 +871,8 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
         return stmt.where(*conditions)
 
     async def get_prop_value(self, obj: Any, prop: str) -> Any:
+        # getattr(self,part)
+        _obj = obj
         for part in prop.split("."):
             try:
                 obj = getattr(obj, part, None)
@@ -881,6 +884,12 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
 
         if callable(obj):
             obj = obj()
+
+        if obj is None and hasattr(self, prop):
+            attr = getattr(self, prop)
+            if inzpect.ismethod(attr):
+                obj = attr(_obj)
+
         return obj
 
     async def _lazyload_prop(self, obj: Any, prop: str) -> Any:
@@ -894,8 +903,8 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
                 return await anyio.to_thread.run_sync(lambda: getattr(obj, prop))
 
     def has_link(self, column_name) -> bool:
-        if column_name in self._has_link_column:
-            return self._has_link_column[column_name]
+        if column_name in self._has_column_link:
+            return self._has_column_link[column_name]
         display_link = getattr(self, "column_display_link", None)
         column_props = self._list_prop_names
         if display_link:
@@ -906,7 +915,7 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
         else:
             result = column_name == column_props[0]
 
-        self._has_link_column[column_name] = result
+        self._has_column_link[column_name] = result
         return result
 
     @property
@@ -928,10 +937,9 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
         formatter = self._list_formatters.get(prop)
         formatted_value = formatter(obj, prop) if formatter else self._default_formatter(value)
         has_column_link = self.has_link(prop)
-
         return value, formatted_value, has_column_link
 
-    def reorder_columns(self, col: list[str]) -> list[str]:
+    def reorder_columns(self, col: builtins.list[str]) -> builtins.list[str]:
         """
         Reorders columns such that relationship fields always at last position
         """
