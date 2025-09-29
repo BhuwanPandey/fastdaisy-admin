@@ -310,11 +310,17 @@ def is_async_session_maker(session_maker: sessionmaker | async_sessionmaker) -> 
 
 
 def add_message(request: Request, message: str, level: MessageLevel = "info"):
+    """
+    Add message at the specified level.
+    ```
+    Level must be one of: 'success', 'info', 'warning', 'error'
+    ```
+    """
     # messages = request.session.pop("_messages", [])
     # Only one message at a time
-    messages = []
-    messages.append({"level": level, "message": message})
-    request.session["_messages"] = messages
+    # messages = []
+    # messages.append({"level": level, "message": message})
+    request.session["_messages"] = [{"level": level, "message": message}]
 
 
 def get_messages(request: Request):

@@ -105,7 +105,6 @@ class BaseAdmin:
             FileSystemLoader(self.templates_dir),
             PackageLoader("fastdaisy_admin", "templates"),
         ]
-
         templates.env.loader = ChoiceLoader(loaders)
         templates.env.globals["min"] = min
         templates.env.globals["zip"] = zip
