@@ -768,7 +768,7 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
         for relation in self._list_relations:
             stmt = stmt.options(selectinload(relation))
 
-        for filter in self.get_filters(self.model):
+        for filter in self.get_filters():
             if filter.has_parameter(request):
                 is_filter_applied = True
                 values = filter.get_query_values(request)
@@ -1014,7 +1014,7 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
             if col.name == column_name:
                 return type(col.type)
 
-    def get_filter_for_column(self, columns: Sequence[MODEL_ATTR], model) -> builtins.list[ColumnFilter]:
+    def get_filter_for_column(self, columns: Sequence[MODEL_ATTR]) -> builtins.list[ColumnFilter]:
         filters: builtins.list[ColumnFilter] = []
 
         for column in columns:
@@ -1022,22 +1022,22 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
             if column in self.model_columns:
                 col_type = type(self.model_columns.get(column))
                 if col_type is Boolean:
-                    filters.append(BooleanFilter(column, model))
+                    filters.append(BooleanFilter(column, self.model))
                 elif col_type is DATE or col_type is DATETIME:
-                    filters.append(DateFieldFilter(column, model))
+                    filters.append(DateFieldFilter(column, self.model))
                 else:
-                    filters.append(AllUniqueStringValuesFilter(column, model))
+                    filters.append(AllUniqueStringValuesFilter(column, self.model))
             elif column in self._relation_names and self._mapper.relationships[column].direction.name == "MANYTOONE":
-                filters.append(ForeignKeyFilter(column, self))
+                filters.append(ForeignKeyFilter(column, self.model))
             else:
                 raise InvalidField(f"{column} is unsupported {self.model.__name__} Field")
         return filters
 
-    def get_filters(self, model) -> builtins.list[ColumnFilter]:
+    def get_filters(self) -> builtins.list[ColumnFilter]:
         """Get list of filters."""
 
         fields: Sequence[MODEL_ATTR] = getattr(self, "column_filters")
-        filters = self.get_filter_for_column(fields, model)
+        filters = self.get_filter_for_column(fields)
         return filters
 
     async def on_model_change(self, data: dict, model: Any, is_created: bool, request: Request) -> None:

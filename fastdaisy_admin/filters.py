@@ -5,12 +5,12 @@ from collections.abc import Callable
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import DATE, DATETIME, or_
+from sqlalchemy import DATE, DATETIME, inspect, or_
 from sqlalchemy.sql.expression import Select, select
 from starlette.requests import Request
 
 if TYPE_CHECKING:
-    from fastdaisy_admin.models import ModelView
+    pass
 
 
 def prettify_attribute_name(column: str) -> str:
@@ -23,8 +23,8 @@ def get_column_obj(column: str, model: Any = None) -> Any:
     return getattr(model, column)
 
 
-def get_foreign_column(col: str, modelview: ModelView):
-    rel_prop = modelview._mapper.relationships[col]
+def get_foreign_column(col: str, model):
+    rel_prop = inspect(model).relationships[col]
     column = next(iter(rel_prop.local_columns))
     fk = next(iter(column.foreign_keys))
     return column, fk.column.name, rel_prop.mapper.class_
@@ -253,10 +253,10 @@ class DateFieldFilter:
 
 
 class ForeignKeyFilter:
-    def __init__(self, column: str, modelview):
+    def __init__(self, column: str, model):
         self.column = column
         self.isnull = "True"
-        self.fk_column, self.fk_target_column_name, self.relation_class = get_foreign_column(column, modelview)
+        self.fk_column, self.fk_target_column_name, self.relation_class = get_foreign_column(column, model)
         self.lookup_isnull = f"{self.fk_column.name}__isnull"
 
     async def lookups(self, request: Request, run_query: Callable[[Select], Any]) -> list[tuple[str, bool, str]]:
