@@ -123,24 +123,23 @@
           </h3>
         </div>
       {% endif %}
-{% for filter in model_view.get_filters() %}
-      <li class="card">
-        <label class="navbar-nav-link dropdown-toggle">
-        <b class="text-sm mb-1 inline-block capitalize">{{ filter.title }} :</b>
-          <select {{model_view.has_mulitple_choice(filter)}} class="filter-select" data-keys={{filter.parameter_name}}>
-            {% for lookup in filter.lookups(request, model_view.model, model_view._run_arbitrary_query) %}
-                <option  {% if lookup[1] %} selected {% endif %} value={{lookup[0]}}>
-                    {{ lookup[2] }}
-                </option>
-            {% endfor %}
-        </select>
-        </label>
-      </li>
-{% endfor %}
+      {% for filter in model_view.get_filters() %}
+        <li class="card">
+          <label class="navbar-nav-link dropdown-toggle">
+          <b class="text-sm mb-1 inline-block capitalize">{{ filter.title }} :</b>
+            <select {{filter.has_multiple_choice}} class="filter-select" data-keys={{filter.parameter_name}}>
+              {% for lookup in filter.lookups(request, model_view._run_arbitrary_query) %}
+                  <option  {% if lookup[1] %} selected {% endif %} value={{lookup[0]}}>
+                      {{ lookup[2] }}
+                  </option>
+              {% endfor %}
+          </select>
+          </label>
+        </li>
+      {% endfor %}
     </div>
   </div>
 {% endif %}
 </div>
-
 
 {% endblock %}
