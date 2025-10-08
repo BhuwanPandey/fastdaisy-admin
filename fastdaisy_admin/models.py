@@ -10,10 +10,10 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar, no_type_check
 
 import anyio
-from sqlalchemy import Boolean, Column, String, asc, cast, desc, func, inspect, or_
+from sqlalchemy import DATE, DATETIME, Boolean, Column, String, asc, cast, desc, func, inspect, or_
 from sqlalchemy.exc import NoInspectionAvailable
 from sqlalchemy.ext.declarative import DeclarativeMeta
-from sqlalchemy.orm import InstrumentedAttribute, Mapper, RelationshipProperty, class_mapper, selectinload, sessionmaker
+from sqlalchemy.orm import Mapper, RelationshipProperty, class_mapper, selectinload, sessionmaker
 from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlalchemy.sql.elements import ClauseElement
 from sqlalchemy.sql.expression import Select, select
@@ -28,7 +28,7 @@ from fastdaisy_admin._queries import Query
 from fastdaisy_admin._types import MODEL_ATTR, AdminAction, ColumnFilter
 from fastdaisy_admin.actions import delete_selected
 from fastdaisy_admin.exceptions import InvalidField, InvalidModelError
-from fastdaisy_admin.filters import AllUniqueStringValuesFilter, BooleanFilter
+from fastdaisy_admin.filters import AllUniqueStringValuesFilter, BooleanFilter, DateFieldFilter, ForeignKeyFilter
 from fastdaisy_admin.formatters import BASE_FORMATTERS
 from fastdaisy_admin.forms import ModelConverter, ModelConverterBase, get_model_form
 from fastdaisy_admin.helpers import (
@@ -634,6 +634,7 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
 
             setattr(self.model, "__repr__", custom_repr)
 
+        # Exclude foreignkey field
         self._prop_names = [
             attr.key
             for attr in self._mapper.attrs
@@ -767,11 +768,11 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
         for relation in self._list_relations:
             stmt = stmt.options(selectinload(relation))
 
-        for filter in self.get_filters():
-            if filter.parameter_name in request.query_params:
+        for filter in self.get_filters(self.model):
+            if filter.has_parameter(request):
                 is_filter_applied = True
                 values = filter.get_query_values(request)
-                stmt = await filter.get_filtered_query(stmt, values, self.model)
+                stmt = await filter.get_filtered_query(stmt, values)
 
         stmt = self.sort_query(stmt, request)
         total = count = await self.count(request)
@@ -810,6 +811,7 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
         that are either one-to-one or one-to-many and could be deleted (like in Django).
         """
         mapper = class_mapper(model)
+        # mapper = inspect(model)
         for rel in mapper.relationships:
             # Ignore many-to-many relationships
             if rel.secondary is not None:
@@ -871,7 +873,6 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
         return stmt.where(*conditions)
 
     async def get_prop_value(self, obj: Any, prop: str) -> Any:
-        # getattr(self,part)
         _obj = obj
         for part in prop.split("."):
             try:
@@ -1013,35 +1014,30 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
             if col.name == column_name:
                 return type(col.type)
 
-    def has_mulitple_choice(self, filter):
-        if issubclass(filter.__class__, AllUniqueStringValuesFilter):
-            return "multiple"
-        return ""
-
-    def get_filter_for_column(self, columns: Sequence[MODEL_ATTR]) -> builtins.list[ColumnFilter]:
+    def get_filter_for_column(self, columns: Sequence[MODEL_ATTR], model) -> builtins.list[ColumnFilter]:
         filters: builtins.list[ColumnFilter] = []
+
         for column in columns:
-            if isinstance(column, str) and column in self.model_columns:
+            column = self._get_prop_name(column)
+            if column in self.model_columns:
                 col_type = type(self.model_columns.get(column))
-            elif (
-                isinstance(column, InstrumentedAttribute)
-                and issubclass(column.class_, self.model)  # type: ignore [arg-type]
-                and column.key in self.model_columns
-            ):
-                col_type = type(self.model_columns.get(column.name))
+                if col_type is Boolean:
+                    filters.append(BooleanFilter(column, model))
+                elif col_type is DATE or col_type is DATETIME:
+                    filters.append(DateFieldFilter(column, model))
+                else:
+                    filters.append(AllUniqueStringValuesFilter(column, model))
+            elif column in self._relation_names and self._mapper.relationships[column].direction.name == "MANYTOONE":
+                filters.append(ForeignKeyFilter(column, self))
             else:
-                raise InvalidField(f"{column} is not valid or unsupported {self.model.__name__} Field")
-            if col_type is Boolean:
-                filters.append(BooleanFilter(column))
-            else:
-                filters.append(AllUniqueStringValuesFilter(column))
+                raise InvalidField(f"{column} is unsupported {self.model.__name__} Field")
         return filters
 
-    def get_filters(self) -> builtins.list[ColumnFilter]:
+    def get_filters(self, model) -> builtins.list[ColumnFilter]:
         """Get list of filters."""
 
         fields: Sequence[MODEL_ATTR] = getattr(self, "column_filters")
-        filters = self.get_filter_for_column(fields)
+        filters = self.get_filter_for_column(fields, model)
         return filters
 
     async def on_model_change(self, data: dict, model: Any, is_created: bool, request: Request) -> None:
