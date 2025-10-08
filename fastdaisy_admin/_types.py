@@ -15,16 +15,24 @@ MODEL_ATTR = str | InstrumentedAttribute
 
 @runtime_checkable
 class ColumnFilter(Protocol):
-    title: str
-    parameter_name: str
+    column: str
 
-    async def lookups(
-        self, request: Request, model: Any, run_query: Callable[[Select], Any]
-    ) -> list[tuple[str, bool, str]]: ...
+    async def lookups(self, request: Request, run_query: Callable[[Select], Any]) -> list[tuple[str, bool, str]]: ...
 
-    async def get_filtered_query(self, query: Select, value: Any, model: Any) -> Select: ...
+    async def get_filtered_query(self, query: Select, value: Any) -> Select: ...
 
     def get_query_values(self, request): ...
+
+    def has_parameter(self, request) -> bool: ...
+
+    @property
+    def parameter_name(self) -> str: ...
+
+    @property
+    def title(self) -> str: ...
+
+    @property
+    def has_multiple_choice(self) -> str: ...
 
 
 @runtime_checkable
