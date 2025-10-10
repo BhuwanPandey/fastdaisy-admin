@@ -318,7 +318,7 @@ class ModelConverter(ModelConverterBase):
         kwargs["choices"] = [(True, "True"), (False, "False")]
         kwargs["render_kw"]["class"] = "select !select-bordered select-sm w-full"
         kwargs["coerce"] = lambda v: str(v) == "True"
-        kwargs["blank_text"] = "UnKnown"
+        kwargs["blank_text"] = "Unknown"
         return SelectField(**kwargs)
 
     @converts("Date")
@@ -344,6 +344,7 @@ class ModelConverter(ModelConverterBase):
             filters = kwargs.get("filters", [])
             filters.append(lambda x: x or None)
             kwargs["filters"] = filters
+            kwargs["blank_text"] = "Unknown"
 
         kwargs["choices"] = available_choices
         kwargs.setdefault("validators", [])
