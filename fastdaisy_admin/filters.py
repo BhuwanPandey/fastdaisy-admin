@@ -3,14 +3,12 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from datetime import date, datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import Any
+from urllib.parse import urlencode
 
 from sqlalchemy import DATE, DATETIME, inspect, or_
 from sqlalchemy.sql.expression import Select, select
 from starlette.requests import Request
-
-if TYPE_CHECKING:
-    pass
 
 
 def prettify_attribute_name(column: str) -> str:
@@ -85,12 +83,64 @@ class BooleanFilter:
         return ""
 
 
+class EnumFilter:
+    def __init__(self, column: str, model):
+        self.column = column
+        self.lookup_isnull = f"{self.column}__isnull"
+        self.field = get_column_obj(self.column, model)
+
+    async def lookups(self, request: Request, run_query: Callable[[Select], Any]) -> list[tuple[str, bool, str]]:
+        param_value = self.get_query_values(request)
+        result = await run_query(select(self.field).where(self.field.is_not(None)).distinct())
+
+        lookups = [("?", param_value is None, "All")]
+        for val in result:
+            is_selected = param_value and str(val[0].value) in param_value
+            query = urlencode({f"{self.column}": str(val[0].value)})
+            lookups.append((f"?{query}", is_selected, val[0].name))
+
+        if self.field.nullable:
+            unknown = "Unknown"
+            is_selected = unknown == param_value
+            lookups.append((f"?{self.lookup_isnull}=True", is_selected, unknown))
+        return lookups
+
+    async def get_filtered_query(self, query: Select, value: Any) -> Select:
+        if value == "Unknown":
+            return query.filter(self.field.is_(None))
+        elif value:
+            return query.filter(self.field.is_(value))
+        return query
+
+    def get_query_values(self, request):
+        if request.query_params.get(self.lookup_isnull) == "True":
+            return "Unknown"
+        return request.query_params.get(self.column)
+
+    def has_parameter(self, request: Request) -> bool:
+        return any(param in request.query_params for param in self.parameter_name.split(","))
+
+    @property
+    def parameter_name(self) -> str:
+        parameter = self.column
+        if self.field.nullable:
+            parameter += f",{self.lookup_isnull}"
+        return parameter
+
+    @property
+    def title(self) -> str:
+        return prettify_attribute_name(self.column)
+
+    @property
+    def has_multiple_choice(self):
+        return ""
+
+
 class AllUniqueStringValuesFilter:
     def __init__(self, column: str, model):
         self.column = column
         self.field = get_column_obj(self.column, model)
         self.lookup_isnull = f"{self.column}__isnull"
-        self.isnull = "True"
 
     async def lookups(self, request: Request, run_query: Callable[[Select], Any]) -> list[tuple[str, bool, str]]:
         param_value = self.get_query_values(request)
@@ -99,12 +149,12 @@ class AllUniqueStringValuesFilter:
         lookup = [("?", selected, "All")]
         for val in result:
             is_selected = param_value and str(val[0]) in param_value
-            query = f"?{self.column}={val[0]}"
-            lookup.append((query, is_selected, val[0]))
+            query = urlencode({f"{self.column}": str(val[0])})
+            lookup.append((f"?{query}", is_selected, val[0]))
 
         if self.field.nullable:
             is_selected = True in param_value
-            lookup.append((f"?{self.lookup_isnull}={self.isnull}", is_selected, "----"))
+            lookup.append((f"?{self.lookup_isnull}=True", is_selected, "----"))
 
         return lookup
 
@@ -135,7 +185,7 @@ class AllUniqueStringValuesFilter:
         if self.field.nullable:
             isnull = query_keys.get(self.lookup_isnull)
             if isnull:
-                values.append(isnull == self.isnull)
+                values.append(isnull == "True")
         return values
 
     def has_parameter(self, request):
@@ -253,9 +303,8 @@ class DateFieldFilter:
 
 
 class ForeignKeyFilter:
-    def __init__(self, column: str, model):
+    def __init__(self, column: str, model, **kwargs):
         self.column = column
-        self.isnull = "True"
         self.fk_column, self.fk_target_column_name, self.relation_class = get_foreign_column(column, model)
         self.lookup_isnull = f"{self.fk_column.name}__isnull"
 
@@ -267,12 +316,12 @@ class ForeignKeyFilter:
         for val in result:
             id_ = getattr(val[0], self.fk_target_column_name)
             is_selected = param and str(id_) in param
-            query = f"?{self.fk_column.name}={id_}"
-            lookup.append((query, is_selected, val[0]))
+            query = urlencode({f"{self.fk_column.name}": str(id_)})
+            lookup.append((f"?{query}", is_selected, val[0]))
 
         if self.fk_column.nullable:
             is_selected = True in param
-            lookup.append((f"?{self.lookup_isnull}={self.isnull}", is_selected, "----"))
+            lookup.append((f"?{self.lookup_isnull}=True", is_selected, "----"))
 
         return lookup
 
@@ -302,7 +351,7 @@ class ForeignKeyFilter:
         if self.fk_column.nullable:
             isnull = query_keys.get(self.lookup_isnull)
             if isnull:
-                values.append(isnull == self.isnull)
+                values.append(isnull == "True")
         return values
 
     def has_parameter(self, request):

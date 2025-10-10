@@ -10,7 +10,8 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar, no_type_check
 
 import anyio
-from sqlalchemy import DATE, DATETIME, Boolean, Column, String, asc, cast, desc, func, inspect, or_
+from sqlalchemy import DATE, DATETIME, Boolean, Column, Integer, String, Text, asc, cast, desc, func, inspect, or_
+from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.exc import NoInspectionAvailable
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import Mapper, RelationshipProperty, class_mapper, selectinload, sessionmaker
@@ -28,7 +29,13 @@ from fastdaisy_admin._queries import Query
 from fastdaisy_admin._types import MODEL_ATTR, AdminAction, ColumnFilter
 from fastdaisy_admin.actions import delete_selected
 from fastdaisy_admin.exceptions import InvalidField, InvalidModelError
-from fastdaisy_admin.filters import AllUniqueStringValuesFilter, BooleanFilter, DateFieldFilter, ForeignKeyFilter
+from fastdaisy_admin.filters import (
+    AllUniqueStringValuesFilter,
+    BooleanFilter,
+    DateFieldFilter,
+    EnumFilter,
+    ForeignKeyFilter,
+)
 from fastdaisy_admin.formatters import BASE_FORMATTERS
 from fastdaisy_admin.forms import ModelConverter, ModelConverterBase, get_model_form
 from fastdaisy_admin.helpers import (
@@ -646,7 +653,7 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
         ]
         self._relation_names = [relation.key for relation in self._mapper.relationships]
 
-        self.model_columns = {col.name: col.type for col in self._mapper.columns}
+        self.model_columns = {col.name: col for col in self._mapper.columns}
         self._column_labels = self._build_column_pairs(self.column_labels)
         self._column_labels_value_by_key = {v: k for k, v in self._column_labels.items()}
 
@@ -1020,17 +1027,23 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
         for column in columns:
             column = self._get_prop_name(column)
             if column in self.model_columns:
-                col_type = type(self.model_columns.get(column))
+                column_obj: Column[Any] = self.model_columns[column]
+                col_type = type(column_obj.type)
                 if col_type is Boolean:
                     filters.append(BooleanFilter(column, self.model))
+                elif col_type is SqlEnum:
+                    filters.append(EnumFilter(column, self.model))
                 elif col_type is DATE or col_type is DATETIME:
                     filters.append(DateFieldFilter(column, self.model))
-                else:
+                elif hasattr(column_obj, "foreign_keys") and column_obj.foreign_keys:
+                    # column with foreign_key is unsupported
+                    raise InvalidField(f"{column} is unsupported Filter Field")
+                elif col_type in [String, Integer, Text]:
                     filters.append(AllUniqueStringValuesFilter(column, self.model))
             elif column in self._relation_names and self._mapper.relationships[column].direction.name == "MANYTOONE":
                 filters.append(ForeignKeyFilter(column, self.model))
             else:
-                raise InvalidField(f"{column} is unsupported {self.model.__name__} Field")
+                raise InvalidField(f"{column} is unsupported Filter Field")
         return filters
 
     def get_filters(self) -> builtins.list[ColumnFilter]:

@@ -94,9 +94,31 @@ class UserAdmin(ModelView):
 ```
 
 ## Built in Column Filters
-Two filters are available which get implemented automatically based on model fields `for_eg: column_filters = [User.name, "is_admin"]` but you can also create custom filters, by following [sqladmin docs](https://aminalaee.github.io/sqladmin/configurations/#columnfilter).
+Different filters are available which get implemented automatically based on model fields `for_eg: column_filters = [User.name, "is_admin"]`.
 All filters have a default value of "all" which allows the user to display all records.
 - `BooleanFilter` - A filter for boolean columns, with the values of Yes (true) and No (false)
 - `AllUniqueStringValuesFilter` - A filter for string columns, with the values of all unique values in the column
+- `EnumFilter` - A filter for enum columns which uses the values defined in the corresponding Enum class for filtering options
+- `DateFieldFilter` - A filter for Date and DateTime columns. It supports relative filter options such as `Today`, `Past 7 Days` and `This Year` and also supports __isnull suffix to filter rows where the date field is NULL
+- `ForeignKeyFilter` - A filter for relationship column which allows filtering based on values from the related model associated with the foreign key relationship
 
+You can define filters for your model by specifying the desired fields in `column_filters`. The appropriate filter class is automatically applied based on the column type.
 
+```python
+
+class BookAdmin(ModelView):
+    model = Book
+    column_filters = [
+        'title',      # Uses AllUniqueStringValuesFilter
+        'is_new',     # Uses BooleanFilter
+        'author',     # Uses ForeignKeyFilter (based on relationship field)
+        'status',     # Uses EnumFilter (based on Enum field)
+        'created_at'  # Uses DateFieldFilter (for Date/DateTime columns)
+        
+        # Note: 'author_id' will raise an InvalidField error
+        # since direct filtering on foreign key columns is not supported
+    ]
+
+admin.add_view(BookAdmin)
+
+```

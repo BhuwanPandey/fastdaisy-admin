@@ -6,7 +6,8 @@ icon: shield-check
 Now, Let me create various model and integrate `fastdaisy-admin` into fastapi application.
 
 ```python
-from sqlalchemy import Column, Boolean, Integer, String, create_engine, Text, DATETIME
+import enum
+from sqlalchemy import Column, Boolean, Integer, String, create_engine, Text, DATETIME, Enum
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy import ForeignKey
 from fastapi import FastAPI
@@ -17,6 +18,10 @@ engine = create_engine(
     "sqlite:///example.db",
     connect_args={"check_same_thread": False},
 )
+
+class Status(enum.Enum):
+    AVAILABLE = "AVAILABLE"
+    UNAVAILABLE = "UNAVAILABLE"
 
 class User(Base):
     __tablename__ = "users"
@@ -38,8 +43,9 @@ class Book(Base):
     description = Column(Text)
     author_id = Column(Integer, ForeignKey('users.id'))
     author = relationship("User", back_populates="books")
+    status = Column(Enum(Status))
     code = Column(Integer, default=1)
-    is_available = Column(Boolean, default=True)
+    is_new = Column(Boolean, default=True)
     created_at = Column(DATETIME)
 
 Base.metadata.create_all(engine)  # Create tables
