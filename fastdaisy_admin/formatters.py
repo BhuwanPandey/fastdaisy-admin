@@ -4,8 +4,8 @@ from markupsafe import Markup
 
 
 def empty_formatter(value: Any) -> str:
-    """Return empty string for `None` value"""
-    return ""
+    """Return dash(-) for `None` value"""
+    return "-"
 
 
 def bool_formatter(value: bool) -> Markup:

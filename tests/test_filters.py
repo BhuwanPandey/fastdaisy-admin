@@ -1,3 +1,4 @@
+import enum
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -5,12 +6,13 @@ import pytest
 from bs4 import BeautifulSoup
 from httpx import AsyncClient
 from httpx._transports.asgi import ASGITransport
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, Enum, ForeignKey, Integer, String
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from starlette.applications import Starlette
 
 from fastdaisy_admin import Admin, ModelView
+from fastdaisy_admin.exceptions import InvalidField
 from tests.common import async_engine as engine
 
 Base = declarative_base()  # type: Any
@@ -20,6 +22,11 @@ app = Starlette()
 admin = Admin(app=app, secret_key="test", engine=engine)
 
 
+class Status(enum.Enum):
+    ACTIVE = "ACTIVE"
+    DEACTIVE = "DEACTIVE"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -27,6 +34,7 @@ class User(Base):
     name = Column(String)
     title = Column(String)
     is_admin = Column(Boolean)
+    status = Column(Enum(Status))
     office_id = Column(Integer, ForeignKey("offices.id"), nullable=True)
 
 
@@ -42,12 +50,13 @@ class Office(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String)
+    address_id = Column(Integer, ForeignKey("addresses.id"))
 
 
 class UserAdmin(ModelView):
     model = User
     column_list = [User.name, User.title]
-    column_filters = [User.title, User.is_admin]
+    column_filters = [User.title, User.is_admin, User.status]
 
 
 class AddressAdmin(ModelView):
@@ -56,8 +65,14 @@ class AddressAdmin(ModelView):
     # This admin will NOT have filters defined
 
 
+class OfficeAdmin(ModelView):
+    model = Office
+    column_filters = [Office.address_id]
+
+
 admin.add_view(UserAdmin)
 admin.add_view(AddressAdmin)
+admin.add_view(OfficeAdmin)
 
 
 @pytest.fixture
@@ -80,12 +95,12 @@ async def prepare_data(prepare_database: Any) -> AsyncGenerator[None, None]:
         session.add_all([office1, office2])
         await session.commit()
 
-        # Create users with different boolean values and titles
-        user1 = User(name="Admin User", title="Manager", is_admin=True, office_id=office1.id)
+        user1 = User(name="Admin User", title="Manager", is_admin=True, status=Status.ACTIVE, office_id=office1.id)
         user2 = User(
             name="Regular User",
             title="Developer",
             is_admin=False,
+            status=Status.DEACTIVE,
             office_id=office2.id,
         )
         session.add_all([user1, user2])
@@ -144,14 +159,13 @@ async def test_filter_lookups(client: AsyncClient) -> None:
 async def test_boolean_filter_functionality(client: AsyncClient) -> None:
     """Test that boolean filters correctly filter users
     based on their is_admin status."""
-    #     # Test with no filter or 'all' filter - should show both users
+    # Test with no filter or 'all' filter - should show both users
     response = await client.get("/admin/user/list")
     assert response.status_code == 200
     soup = BeautifulSoup(response.text, "html.parser")
     td_tags = soup.find_all("td", class_="break-all")
     td_texts = [td.get_text(strip=True) for td in td_tags]
 
-    # Assert both users appear
     assert "Admin User" in td_texts
     assert "Regular User" in td_texts
 
@@ -171,3 +185,58 @@ async def test_boolean_filter_functionality(client: AsyncClient) -> None:
     td_texts = [td.get_text(strip=True) for td in td_tags]
     assert "Admin User" not in td_texts
     assert "Regular User" in td_texts
+
+
+@pytest.mark.anyio
+async def test_uniquestring_filter_functionality(client: AsyncClient) -> None:
+    """Test that AllUniqueStringValuesFilter correctly filter users
+    based on their title."""
+    response = await client.get("/admin/user/list?title=Developer")
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    td_tags = soup.find_all("td", class_="break-all")
+    td_texts = [td.get_text(strip=True) for td in td_tags]
+    assert "Regular User" in td_texts
+
+    # Filter with multiple value
+    response = await client.get("/admin/user/list?title__in=Manager,Developer")
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    td_tags = soup.find_all("td", class_="break-all")
+    td_texts = [td.get_text(strip=True) for td in td_tags]
+    assert "Admin User" in td_texts
+    assert "Regular User" in td_texts
+
+
+@pytest.mark.anyio
+async def test_enum_filter_functionality(client: AsyncClient) -> None:
+    """Test that EnumFilter correctly filter users
+    based on their status."""
+    response = await client.get("/admin/user/list?status=ACTIVE")
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    td_tags = soup.find_all("td", class_="break-all")
+    td_texts = [td.get_text(strip=True) for td in td_tags]
+    assert "Admin User" in td_texts
+
+    response = await client.get("/admin/user/list?status=DEACTIVE")
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    td_tags = soup.find_all("td", class_="break-all")
+    td_texts = [td.get_text(strip=True) for td in td_tags]
+    assert "Regular User" in td_texts
+    assert "Admin User" not in td_texts
+
+    response = await client.get("/admin/user/list?status__isnull=True")
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    td_tags = soup.find_all("td", class_="break-all")
+    td_texts = [td.get_text(strip=True) for td in td_tags]
+    assert "Regular User" not in td_texts
+    assert "Admin User" not in td_texts
+
+
+@pytest.mark.anyio
+async def test_filter_foreign_key_raises(client: AsyncClient) -> None:
+    with pytest.raises(InvalidField, match="address_id is unsupported Filter Field"):
+        await client.get("/admin/office/list")

@@ -4,7 +4,7 @@ from collections.abc import Generator
 import pytest
 from jinja2 import TemplateNotFound
 from markupsafe import Markup
-from sqlalchemy import Boolean, Column, Enum, ForeignKey, Integer, String, select
+from sqlalchemy import DATETIME, Boolean, Column, Enum, ForeignKey, Integer, String, select
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import (
     contains_eager,
@@ -19,9 +19,7 @@ from starlette.testclient import TestClient
 
 from fastdaisy_admin import Admin, ModelView, expose
 from fastdaisy_admin.exceptions import InvalidModelError
-from fastdaisy_admin.filters import (
-    AllUniqueStringValuesFilter,
-)
+from fastdaisy_admin.filters import AllUniqueStringValuesFilter, BooleanFilter, DateFieldFilter, ForeignKeyFilter
 from fastdaisy_admin.helpers import get_column_python_type
 from tests.common import sync_engine as engine
 
@@ -79,9 +77,10 @@ class Address(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String)
+    is_located = Column(Boolean)
     user_id = Column(Integer, ForeignKey("users.id"))
-
     user = relationship("User", back_populates="addresses")
+    created_at = Column(DATETIME)
 
 
 class Profile(Base):
@@ -144,15 +143,21 @@ def test_column_list_by_str_name() -> None:
 
 
 def test_column_filters() -> None:
-    filter = AllUniqueStringValuesFilter(User.name)
+    class AddressAdmin(ModelView):
+        model = Address
+        column_filters = [Address.name, Address.is_located, Address.user, Address.created_at]
 
-    class UserAdmin(ModelView):
-        model = User
-        column_filters = [User.name]
+    filters = [
+        AllUniqueStringValuesFilter("name", Address),
+        BooleanFilter("is_located", Address),
+        ForeignKeyFilter("user", Address),
+        DateFieldFilter("created_at", Address),
+    ]
 
-    all_filters = UserAdmin().get_filters()
-    assert len(all_filters) == 1
-    assert all_filters[0].title == filter.title
+    all_filters = AddressAdmin().get_filters()
+    assert len(all_filters) == 4
+    for idx, filter in enumerate(filters):
+        assert all_filters[idx].column == filter.column
 
 
 def test_column_list_both_include_and_exclude() -> None:
@@ -421,7 +426,7 @@ def test_model_columns_all_keyword() -> None:
         model = Address
         column_list = "__all__"
 
-    assert AddressAdmin().get_list_columns() == ["id", "name", "user"]
+    assert AddressAdmin().get_list_columns() == ["id", "name", "is_located", "created_at", "user"]
 
 
 async def test_get_prop_value() -> None:

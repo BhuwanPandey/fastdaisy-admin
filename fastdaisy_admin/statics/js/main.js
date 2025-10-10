@@ -114,13 +114,12 @@ const extractValueFromQueryString = (queryString, dataKey) => {
         try {
             const params = new URLSearchParams(queryString);
             for (const [key, value] of params) {
-                if (key.startsWith(dataKey)) {
-                    return value;
+                if (key == dataKey){
+                  return value;
                 }
             }
             return null;
         } catch (error) {
-            console.error('Error parsing query string:', error);
             return null;
         }
     };
@@ -132,9 +131,14 @@ const buildQueryString = (queryObj) => {
                     const validValues = values.filter(
                         (item) => item != null && item !== ''
                     );
+                    
                     if (validValues.length > 0) {
-                        return validValues.map(item => `${encodeURIComponent(key)}=${encodeURIComponent(item)}`);
+                        const joinedValues = validValues
+                            .map((item) => encodeURIComponent(item))
+                            .join(',');
+                        return `${key}=${joinedValues}`;
                     }
+
                 }
                 return null;
             })
@@ -172,12 +176,11 @@ const applyFilters = () => {
                   let formattedKey = key
                   
                   
-              // if (select.multiple) {
-              //     formattedKey = key.replace('__exact', '__in');
-              //     if (!formattedKey.match(/__[^_]+$/)) {
-              //         formattedKey += '__in';
-              //     }
-              // }
+              if (select.multiple && values.length > 1) {
+                  if (!formattedKey.match(/__in$/)) {
+                      formattedKey += '__in';
+                  }
+              }
               if (values.length) {
                   filterData[formattedKey] = filterData[formattedKey]
                       ? [...filterData[formattedKey], ...values]
@@ -187,7 +190,6 @@ const applyFilters = () => {
       });
       let queryString = buildQueryString(filterData);
       window.location.href = queryString || '?';
-
   });
 }
 

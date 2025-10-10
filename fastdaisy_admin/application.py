@@ -474,10 +474,12 @@ class Admin(BaseAdminView):
         """Edit model endpoint."""
 
         await self._edit(request)
-
         identity = request.path_params["identity"]
         model_view = self._find_model_view(identity)
-
+        pk = request.path_params["pk"]
+        if not pk:
+            url = URL(str(request.url_for("admin:list", identity=identity)))
+            return RedirectResponse(url=url, status_code=302)
         model = await model_view.get_object_for_edit(request)
         if not model:
             raise HTTPException(status_code=404)
@@ -522,11 +524,16 @@ class Admin(BaseAdminView):
     @login_required
     async def delete(self, request: Request) -> Response:
         """Delete route."""
+
         await self._delete(request)
 
         identity = request.path_params["identity"]
         model_view = self._find_model_view(identity)
         pk = request.path_params["pk"]
+        if not pk:
+            url = URL(str(request.url_for("admin:list", identity=identity)))
+            return RedirectResponse(url=url, status_code=302)
+
         model = await model_view.get_object_for_delete(pk)
         if not model:
             raise HTTPException(status_code=404)
@@ -619,7 +626,7 @@ class Admin(BaseAdminView):
                 form_data.append((key, value))
         return FormData(form_data)
 
-    def get_save_redirect_url(self, request: Request, form: FormData, model_view: ModelView, obj: Any) -> str | URL:
+    def get_save_redirect_url(self, request: Request, form: FormData, model_view: ModelView, obj: Any) -> URL:
         """
         Get the redirect URL after a save action
         which is triggered from create/edit page.

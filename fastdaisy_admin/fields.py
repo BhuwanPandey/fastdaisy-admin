@@ -72,9 +72,6 @@ class SelectField(fields.SelectField):
     def iter_choices(self) -> Generator[tuple[str, str, bool, dict], None, None]:
         choices = self.choices or []
 
-        if self.allow_blank:
-            yield ("__None", self.blank_text, self.data is None, {})
-
         for choice in choices:
             if isinstance(choice, tuple):
                 yield (choice[0], choice[1], self.coerce(choice[0]) == self.data, {})
@@ -85,6 +82,8 @@ class SelectField(fields.SelectField):
                     self.coerce(choice.value) == self.data,
                     {},
                 )
+        if self.allow_blank:
+            yield ("__None", self.blank_text, self.data is None, {})
 
     def process_formdata(self, valuelist: list[str]) -> None:
         if valuelist:
