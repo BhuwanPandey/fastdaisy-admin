@@ -14,7 +14,7 @@ from sqlalchemy import DATE, DATETIME, Boolean, Column, Integer, String, Text, a
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.exc import NoInspectionAvailable
 from sqlalchemy.ext.declarative import DeclarativeMeta
-from sqlalchemy.orm import Mapper, RelationshipProperty, class_mapper, selectinload, sessionmaker
+from sqlalchemy.orm import Mapper, RelationshipProperty, selectinload, sessionmaker
 from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlalchemy.sql.elements import ClauseElement
 from sqlalchemy.sql.expression import Select, select
@@ -28,6 +28,7 @@ from wtforms.fields.core import UnboundField
 from fastdaisy_admin._queries import Query
 from fastdaisy_admin._types import MODEL_ATTR, AdminAction, ColumnFilter
 from fastdaisy_admin.actions import delete_selected
+from fastdaisy_admin.auth.models import BaseUser
 from fastdaisy_admin.exceptions import InvalidField, InvalidModelError
 from fastdaisy_admin.filters import (
     AllUniqueStringValuesFilter,
@@ -817,8 +818,7 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
         Returns a generator of relationships from other models to this model
         that are either one-to-one or one-to-many and could be deleted (like in Django).
         """
-        mapper = class_mapper(model)
-        # mapper = inspect(model)
+        mapper = inspect(model)
         for rel in mapper.relationships:
             # Ignore many-to-many relationships
             if rel.secondary is not None:
@@ -1071,6 +1071,9 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
         pairs = {}
         for label, value in pair.items():
             pairs[self._get_prop_name(label)] = value
+
+        if issubclass(self.model, BaseUser):
+            pairs["hashed_password"] = "Password"
         return pairs
 
     async def delete_model(self, request: Request, pk: str | ModelView) -> None:
@@ -1092,9 +1095,29 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
         By default do nothing.
         """
 
-    async def scaffold_form(self, rules: builtins.list[str] | None = None) -> type[Form]:
+    async def scaffold_form(self, rules: builtins.list[str] | None = None, insert: bool | None = None) -> type[Form]:
         if self.form is not None:
             return self.form
+
+        form_widget_args = self.form_widget_args
+
+        if isinstance(self.model, type) and issubclass(self.model, BaseUser):
+            if not insert:
+                form_widget_args.update(
+                    {
+                        "hashed_password": {
+                            "required": False,
+                        }
+                    }
+                )
+            else:
+                form_widget_args.update(
+                    {
+                        "hashed_password": {
+                            "required": True,
+                        }
+                    }
+                )
 
         form = await get_model_form(
             model=self.model,
@@ -1102,10 +1125,11 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
             only=self._form_prop_names,
             column_labels=self._column_labels,
             form_args=self.form_args,
-            form_widget_args=self.form_widget_args,
+            form_widget_args=form_widget_args,
             form_class=self.form_base_class,
             form_overrides=self.form_overrides,
             form_converter=self.form_converter,
+            insert=insert,
         )
 
         if rules:
@@ -1122,7 +1146,6 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
                 column_labels = dict(name="Name", email="Email")
                 column_searchable_list = [User.name, User.email]
 
-            # placeholder is: "Name, Email"
             ```
         """
 
