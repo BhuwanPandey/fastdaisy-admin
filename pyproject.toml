@@ -27,11 +27,13 @@ classifiers = [
     "Framework :: FastAPI",
 ]
 dependencies = [
+    "bcrypt>=5.0.0",
     "itsdangerous>=2.2.0",
     "jinja2>=3.1.6",
     "python-multipart>=0.0.20",
     "sqlalchemy>=2.0.43",
     "starlette>=0.47.3",
+    "typer>=0.19.2",
     "wtforms>=3.2.1",
 ]
 requires-python = ">=3.10"
@@ -67,6 +69,9 @@ dev = [
     "ruff>=0.13.0",
     "uvicorn>=0.35.0",
 ]
+
+[project.scripts]
+fastdaisy-admin = "fastdaisy_admin.auth.command:app"
 
 [[tool.hatch.envs.test.matrix]]
 python = ["3.10", "3.11", "3.12", "3.13"]
