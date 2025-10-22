@@ -57,22 +57,7 @@ $("#select-all").click(function () {
   $('input.select-box:checkbox').prop('checked', this.checked);
 });
 
-// Bulk delete
-$("#action-delete").click(function () {
-  var pks = [];
-  $('.select-box').each(function () {
-    if ($(this).is(':checked')) {
-      pks.push($(this).siblings().get(0).value);
-    }
-  });
 
-  $('#action-delete').data("pk", pks);
-  $('#action-delete').data("url", $(this).data('url') + '?pks=' + pks.join(","));
-  $('#modal-delete').modal('show');
-});
-
-
-$(document).ready(function () {
 
 function submit_search_form() {
     let search_val = $('#list-form #searchbar').val()
@@ -199,8 +184,6 @@ if (applyButton) {
     applyButton.addEventListener('click', applyFilters);
 }
 
-
-});
 
 $(document).on('click', '.cancel-link', function (e) {
   e.preventDefault();
