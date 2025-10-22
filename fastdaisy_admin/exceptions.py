@@ -1,14 +1,13 @@
-class FastDaisyAdminException(Exception):
-    pass
+class FastDaisyAdminException(Exception): ...
 
 
-class InvalidModelError(FastDaisyAdminException):
-    pass
+class InvalidModelError(FastDaisyAdminException): ...
 
 
-class NoConverterFound(FastDaisyAdminException):
-    pass
+class NoConverterFound(FastDaisyAdminException): ...
 
 
-class InvalidField(FastDaisyAdminException):
-    pass
+class InvalidField(FastDaisyAdminException): ...
+
+
+class InvalidAuthModelError(FastDaisyAdminException): ...

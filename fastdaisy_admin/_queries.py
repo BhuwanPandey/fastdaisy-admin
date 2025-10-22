@@ -11,6 +11,7 @@ from sqlalchemy.sql.schema import Column
 from starlette.requests import Request
 
 from fastdaisy_admin._types import MODEL_PROPERTY
+from fastdaisy_admin.auth.models import BaseUser
 from fastdaisy_admin.helpers import (
     get_column_python_type,
     get_direction,
@@ -20,6 +21,7 @@ from fastdaisy_admin.helpers import (
 )
 
 if TYPE_CHECKING:
+    from fastdaisy_admin.application import Admin
     from fastdaisy_admin.models import ModelView
 
 
@@ -121,9 +123,10 @@ class Query:
             anyio.from_thread.run(self.model_view.after_model_delete, obj, request)
 
     def _insert_sync(self, data: dict[str, Any], request: Request) -> Any:
-        obj = self.model_view.model()
+        model = self.model_view.model
 
         with self.model_view.session_maker(expire_on_commit=False) as session:
+            obj = model()
             anyio.from_thread.run(self.model_view.on_model_change, data, obj, True, request)
             obj = self._set_attributes_sync(session, obj, data)
             session.add(obj)
@@ -185,9 +188,10 @@ class Query:
             await self.model_view.after_model_delete(obj, request)
 
     async def _insert_async(self, data: dict[str, Any], request: Request) -> Any:
-        obj = self.model_view.model()
+        model = self.model_view.model
 
         async with self.model_view.session_maker(expire_on_commit=False) as session:
+            obj = model()
             await self.model_view.on_model_change(data, obj, True, request)
             obj = await self._set_attributes_async(session, obj, data)
             session.add(obj)
@@ -217,12 +221,30 @@ class Query:
             await anyio.to_thread.run_sync(self._delete_sync, obj, request)
 
     async def insert(self, data: dict, request: Request) -> Any:
+        model = self.model_view.model
+        if isinstance(model, type) and issubclass(model, BaseUser):
+            admin_ref: Admin = self.model_view._admin_ref
+            await admin_ref.auth_service.validate_username(data["username"], self.model_view._mapper)
+            if request.state._from == "edit" and data["hashed_password"] == "":
+                data["hashed_password"] = request.state._passxxx
+            else:
+                admin_ref.auth_service.validate_password(data["hashed_password"], self.model_view._mapper)
+                data["hashed_password"] = admin_ref.auth_service.get_password_hash(data["hashed_password"])
+
         if self.model_view.is_async:
             return await self._insert_async(data, request)
         else:
             return await anyio.to_thread.run_sync(self._insert_sync, data, request)
 
     async def update(self, pk: Any, data: dict, request: Request) -> Any:
+        contain_hash = getattr(request.state, "_passxxx", None)
+        if contain_hash and "hashed_password" in data:
+            admin_ref: Admin = self.model_view._admin_ref
+            if data["hashed_password"] == "":
+                data["hashed_password"] = request.state._passxxx
+            else:
+                data["hashed_password"] = admin_ref.auth_service.get_password_hash(data["hashed_password"])
+
         if self.model_view.is_async:
             return await self._update_async(pk, data, request)
         else:

@@ -77,14 +77,20 @@
   ) }}
   <div class="flex flex-col">
     {% if field.errors %}
-    {{ field(class_="form-control is-invalid") }}
+    {{ field(class_="input w-full focus:outline-0 transition-all input-sm input-bordered focus:outline-offset-0 is-invalid") }}
     {% else %}
     {% if mv.only_view  %}
       <div class="read-only bg-base-300 p-2 rounded">{{ field.data }}</div>
     {% else %}
       {{ field|apply_class }}
+      {% if field.id == "hashed_password" and mv.showed_passxxx %}
+          <span class="pl-[5px] font-semibold py-2">
+            Hashed Password: {{ mv.showed_passxxx }}
+          </span>
+      {% endif %}
     {% endif %}
     {% endif %}
+
     {% for error in field.errors %}
     <div class="invalid-feedback">{{ error }}</div>
     {% endfor %}
