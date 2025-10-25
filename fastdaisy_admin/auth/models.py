@@ -3,6 +3,8 @@ from datetime import UTC, datetime
 from sqlalchemy import Boolean, DateTime, String
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column
 
+from fastdaisy_admin.exceptions import FastDaisyAdminException
+
 UTC = UTC
 Base = declarative_base()
 
@@ -27,4 +29,7 @@ class User(Base, BaseUser):
     __tablename__ = "users"
 
     def __init_subclass__(cls, **kwargs):
-        raise TypeError(f"Subclassing of {User.__name__} is not allowed.")
+        raise FastDaisyAdminException(f"Subclassing of '{User.__name__}' is not allowed.")
+
+
+all = [BaseUser, User]

@@ -327,7 +327,7 @@ class Admin(BaseAdminView):
         middlewares: Sequence[Middleware] | None = None,
         authentication: bool = False,
         debug: bool = False,
-        templates_dir: str = "templates"
+        templates_dir: str = "templates",
     ) -> None:
         """
         Args:
@@ -351,7 +351,7 @@ class Admin(BaseAdminView):
             favicon_url=favicon_url,
             templates_dir=templates_dir,
             middlewares=middlewares,
-            authentication=authentication
+            authentication=authentication,
         )
 
         statics = StaticFiles(packages=["fastdaisy_admin"])
@@ -628,8 +628,6 @@ class Admin(BaseAdminView):
             return await self.templates.TemplateResponse(
                 request, "fastdaisy_admin/login.html", context, status_code=400
             )
-        # store user identity on successfull login
-        request.session["_user_identity"] = user_identity
         return RedirectResponse(request.url_for("admin:index"), status_code=302)
 
     async def logout(self, request: Request) -> Response:
