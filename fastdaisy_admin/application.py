@@ -11,6 +11,7 @@ from typing import (
 )
 
 from jinja2 import ChoiceLoader, FileSystemLoader, PackageLoader
+from sqlalchemy import Table
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import Session, sessionmaker
@@ -26,8 +27,10 @@ from starlette.staticfiles import StaticFiles
 
 from fastdaisy_admin._menu import CategoryMenu, Menu, ViewMenu
 from fastdaisy_admin._types import ASYNC_ENGINE_TYPE, ENGINE_TYPE, AdminAction
-from fastdaisy_admin.authentication import AuthenticationBackend
+from fastdaisy_admin.auth.models import BaseUser, User
+from fastdaisy_admin.auth.service import UserService
 from fastdaisy_admin.decorators import login_required
+from fastdaisy_admin.exceptions import InvalidAuthModelError
 from fastdaisy_admin.forms import WTFORMS_ATTRS, WTFORMS_ATTRS_REVERSED
 from fastdaisy_admin.helpers import (
     add_message,
@@ -66,7 +69,7 @@ class BaseAdmin:
         favicon_url: str | None = None,
         templates_dir: str = "templates",
         middlewares: Sequence[Middleware] | None = None,
-        authentication_backend: AuthenticationBackend | None = None,
+        authentication: bool = False,
     ) -> None:
         self.app = app
         self.engine = engine
@@ -89,8 +92,7 @@ class BaseAdmin:
         self.session_maker.configure(autoflush=False, autocommit=False)
         self.is_async = is_async_session_maker(self.session_maker)
 
-        self.authentication_backend = authentication_backend
-
+        self.authentication = authentication
         middlewares = list(middlewares) if middlewares is not None else []
         middlewares.insert(0, Middleware(SessionMiddleware, secret_key=secret_key))
 
@@ -317,14 +319,15 @@ class Admin(BaseAdminView):
         secret_key: str,
         engine: ENGINE_TYPE | None = None,
         session_maker: sessionmaker | async_sessionmaker | None = None,
+        auth_model: type[User] = None,
         base_url: str = "/admin",
         title: str = "Admin",
         logo_url: str | None = None,
         favicon_url: str | None = None,
         middlewares: Sequence[Middleware] | None = None,
+        authentication: bool = False,
         debug: bool = False,
         templates_dir: str = "templates",
-        authentication_backend: AuthenticationBackend | None = None,
     ) -> None:
         """
         Args:
@@ -348,20 +351,22 @@ class Admin(BaseAdminView):
             favicon_url=favicon_url,
             templates_dir=templates_dir,
             middlewares=middlewares,
-            authentication_backend=authentication_backend,
+            authentication=authentication,
         )
 
         statics = StaticFiles(packages=["fastdaisy_admin"])
 
         async def http_exception(request: Request, exc: Exception) -> Response | Awaitable[Response]:
             assert isinstance(exc, HTTPException)
-            context = {
-                "status_code": exc.status_code,
-                "message": exc.detail,
-            }
-            return await self.templates.TemplateResponse(
-                request, "fastdaisy_admin/error.html", context, status_code=exc.status_code
-            )
+            if exc.status_code in [404]:
+                context = {
+                    "status_code": exc.status_code,
+                    "message": exc.detail,
+                }
+                return await self.templates.TemplateResponse(
+                    request, "fastdaisy_admin/error.html", context, status_code=exc.status_code
+                )
+            return RedirectResponse(url=request.url_for("admin:login"), status_code=302)
 
         routes = [
             Mount("/statics", app=statics, name="statics"),
@@ -386,15 +391,45 @@ class Admin(BaseAdminView):
                 methods=["GET", "POST"],
             ),
             Route("/{identity}/export/{export_type}", endpoint=self.export, name="export"),
-            Route("/login", endpoint=self.login, name="login", methods=["GET", "POST"]),
-            Route("/logout", endpoint=self.logout, name="logout", methods=["POST"]),
         ]
 
-        self.admin.router.routes = routes
         self.admin.exception_handlers = {HTTPException: http_exception}
         self.admin.debug = debug
+        self.auth_model = auth_model or User
 
+        if self.authentication and self.auth_model:
+            if not isinstance(auth_model, type) or not issubclass(auth_model, BaseUser) or auth_model is BaseUser:
+                error = ""
+                if auth_model is BaseUser:
+                    error = ", not BaseUser itself"
+                raise InvalidAuthModelError(f"Auth model must be a subclass of BaseUser{error}.")
+
+            routes += [
+                Route("/login", endpoint=self.login, name="login", methods=["GET", "POST"]),
+                Route("/logout", endpoint=self.logout, name="logout", methods=["POST"]),
+            ]
+
+        self.auth_service = UserService(self.session_maker, self.is_async, self.auth_model)
+        self.admin.router.routes = routes
         self.app.mount(base_url, app=self.admin, name="admin")
+
+    async def initialize_admin_db(self):
+        try:
+            table = self.auth_model
+            if self.is_async:
+                async with self.engine.begin() as conn:
+                    logger.info(f"Creating table: {table.__tablename__}")
+                    table_obj = cast(Table, table.__table__)
+                    await conn.run_sync(table_obj.create, checkfirst=True)
+            else:
+                with self.engine.begin() as conn:
+                    logger.info(f"Creating table: {table.__tablename__}")
+                    table_obj = cast(Table, table.__table__)
+                    table_obj.create(bind=conn, checkfirst=True)
+            logger.info("Admin database tables created successfully")
+        except Exception as e:
+            logger.error(f"Error creating admin database tables: {str(e)}", exc_info=True)
+            raise
 
     @login_required
     async def index(self, request: Request) -> Response:
@@ -438,8 +473,9 @@ class Admin(BaseAdminView):
 
         identity = request.path_params["identity"]
         model_view = self._find_model_view(identity)
-
-        Form = await model_view.scaffold_form(model_view._form_create_rules)
+        model_view.showed_passxxx = None
+        request.state._from = "create"
+        Form = await model_view.scaffold_form(model_view._form_create_rules, insert=True)
         form_data = await self._handle_form_data(request)
         form = Form(form_data)
 
@@ -474,9 +510,11 @@ class Admin(BaseAdminView):
         """Edit model endpoint."""
 
         await self._edit(request)
+        pass_xxx = None
         identity = request.path_params["identity"]
         model_view = self._find_model_view(identity)
         pk = request.path_params["pk"]
+        request.state._from = "edit"
         if not pk:
             url = URL(str(request.url_for("admin:list", identity=identity)))
             return RedirectResponse(url=url, status_code=302)
@@ -485,13 +523,18 @@ class Admin(BaseAdminView):
             raise HTTPException(status_code=404)
 
         Form = await model_view.scaffold_form(model_view._form_edit_rules)
-
+        if isinstance(model_view.model, type) and issubclass(model_view.model, BaseUser):
+            request.state._passxxx = model.hashed_password
+            pass_xxx = (
+                f"{model.hashed_password[:15]} *********************"
+                if len(model.hashed_password) > 15
+                else model.hashed_password
+            )
+            model.hashed_password = None
         form = Form(obj=model, data=self._normalize_wtform_data(model))
-        context = {
-            "model": model,
-            "model_view": model_view,
-            "form": form,
-        }
+        model_view.showed_passxxx = pass_xxx
+
+        context = {"model": model, "model_view": model_view, "form": form}
 
         if request.method == "GET":
             return await self.templates.TemplateResponse(request, model_view.edit_template, context)
@@ -503,6 +546,7 @@ class Admin(BaseAdminView):
             return await self.templates.TemplateResponse(request, model_view.edit_template, context, status_code=400)
 
         form_data_dict = self._denormalize_wtform_data(form.data, model)
+
         try:
             if model_view.save_as and "_saveasnew" in form_data:
                 obj = await model_view.insert_model(request, form_data_dict)
@@ -567,25 +611,27 @@ class Admin(BaseAdminView):
         return await model_view.export_data(rows, export_type=export_type)
 
     async def login(self, request: Request) -> Response:
-        assert self.authentication_backend is not None
+        user_identity = next(
+            (view.identity for view in self._views if isinstance(view, ModelView) and view.model == self.auth_model),
+            None,
+        )
+        if await self.auth_service.authenticate(request):
+            return RedirectResponse(request.url_for("admin:index"), status_code=302)
 
         context = {}
         if request.method == "GET":
             return await self.templates.TemplateResponse(request, "fastdaisy_admin/login.html")
 
-        ok = await self.authentication_backend.login(request)
-        if not ok:
-            context["error"] = "Invalid credentials."
+        user = await self.auth_service.login(request)
+        if not user:
+            context["error"] = "Invalid credentials. Please try again."
             return await self.templates.TemplateResponse(
                 request, "fastdaisy_admin/login.html", context, status_code=400
             )
-
         return RedirectResponse(request.url_for("admin:index"), status_code=302)
 
     async def logout(self, request: Request) -> Response:
-        assert self.authentication_backend is not None
-
-        await self.authentication_backend.logout(request)
+        await self.auth_service.logout(request)
 
         url = str(request.url_for("admin:login"))
         return JSONResponse({"redirect_url": url})

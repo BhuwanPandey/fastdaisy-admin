@@ -1,0 +1,121 @@
+---
+title: Authentication
+icon: lock-a
+---
+
+`fastdaisy-admin` provides an optional authentication system for securing the admin panel.
+To enable authentication mode, set `authentication=True` when initializing the `Admin` instance.
+
+If you are satisfied with the default `User` table, you can create a superuser by running the following command:
+
+``` bash
+fastdaisy-admin createsuperuser
+
+```
+
+And also, you can provide file path which contain `Admin` instance as 
+
+``` bash
+
+fastdaisy-admin createsuperuser user/app.py
+```
+
+### Working with User table 
+
+By default, the `User` table is automatically created when you run the above command.
+However, it is not recommended to use the built-in `User` model if you plan to establish relationships with other tables or need to add custom fields.
+
+The default `User` table contains the following fields:
+- id
+- username
+- hashed_password
+- is_active
+- is_superuser
+- date_joined
+
+If you need a customized User model, you can override it as shown below:
+
+
+``` python {5,22-24,41-42}
+
+import contextlib
+from sqlalchemy import Column, Boolean, Integer, String, Text, create_engine
+from sqlalchemy.orm import declarative_base,relationship,sessionmaker
+from fastdaisy_admin.auth.models import BaseUser
+
+Base = declarative_base()
+engine = create_engine(
+    "sqlite:///example.db",
+    connect_args={"check_same_thread": False},
+)
+Session = sessionmaker(bind=engine)
+
+@contextlib.asynccontextmanager
+async def lifespan(app):
+    Base.metadata.create_all(engine)
+    yield
+
+
+app = Starlette(lifespan=lifespan)
+
+class User(Base, BaseUser):
+    __tablename__ = "users"
+    books = relationship("Book", back_populates="author", cascade="all, delete-orphan")
+
+
+class Book(Base):
+    __tablename__ = 'books'
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String)
+    description = Column(Text)
+    author_id = Column(Integer, ForeignKey('users.id'))
+    author = relationship("User", back_populates="books")
+
+
+admin = Admin(
+    app, 
+    secret_key, 
+    engine,
+    authentication=True,
+    auth_model=User
+)
+
+
+```
+
+In the `Admin` class, ensure that:
+- `authentication=True` is set to enable authentication.
+- `auth_model=User` is passed if you are using a custom `User` model.
+
+
+### Creating superuser
+
+To create a superuser, run:
+``` bash
+fastdaisy-admin createsuperuser
+
+```
+
+When executed:
+1. The User table will be created automatically (if it does not already exist).
+2. You will be prompted to enter a username and password.
+3. A superuser account will then be created.
+
+To access the admin interface, log in using valid credentials on the login page.
+Authentication is managed internally using session cookies, which remain valid for two weeks.
+
+To log out, click the Logout button located in the navigation bar. This will clear the session data from your cookies.
+You will also see an Edit Profile button in the navigation bar when you register a user admin as shown below:
+
+``` python
+
+from fastdaisy_admin import ModelView
+
+class UserAdmin(ModelView):
+    model = User
+
+admin.add_view(UserAdmin)
+
+```
+

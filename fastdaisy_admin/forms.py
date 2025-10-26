@@ -118,6 +118,7 @@ class ModelConverterBase:
         field_args: dict[str, Any],
         field_widget_args: dict[str, Any],
         label: str | None = None,
+        insert: bool | None = None,
     ) -> dict[str, Any] | None:
         if not isinstance(prop, (RelationshipProperty, ColumnProperty)):
             return None
@@ -135,12 +136,11 @@ class ModelConverterBase:
         kwargs.setdefault("default", None)
         kwargs.setdefault("description", prop.doc)
         kwargs.setdefault("render_kw", widget_args)
-
+        kwargs["render_kw"]["from_insert"] = insert
         if isinstance(prop, ColumnProperty):
             kwargs = self._prepare_column(prop=prop, kwargs=kwargs)
         else:
             kwargs = await self._prepare_relationship(prop=prop, session_maker=session_maker, kwargs=kwargs)
-
         return kwargs
 
     def _prepare_column(self, prop: ColumnProperty, kwargs: dict) -> dict | None:
@@ -173,8 +173,8 @@ class ModelConverterBase:
             and not column.default
             and not column.server_default
         ):
-            kwargs["validators"].append(validators.InputRequired())
-
+            if not kwargs["render_kw"].get("required") == False:
+                kwargs["validators"].append(validators.InputRequired())
         return kwargs
 
     async def _prepare_relationship(
@@ -251,6 +251,7 @@ class ModelConverterBase:
         field_widget_args: dict[str, Any],
         label: str | None = None,
         override: type[Field] | None = None,
+        insert: bool | None = None,
     ) -> UnboundField:
         kwargs = await self._prepare_kwargs(
             prop=prop,
@@ -258,6 +259,7 @@ class ModelConverterBase:
             field_args=field_args,
             field_widget_args=field_widget_args,
             label=label,
+            insert=insert,
         )
 
         if kwargs is None:
@@ -312,6 +314,8 @@ class ModelConverter(ModelConverterBase):
         if not prop.columns[0].nullable:
             kwargs.setdefault("render_kw", {})
             kwargs["render_kw"]["class"] = "toggle-sm border-gray-500 toggle"
+            if kwargs["render_kw"].get("from_insert"):
+                kwargs["render_kw"]["checked"] = kwargs["default"]
             return BooleanField(**kwargs)
 
         kwargs["allow_blank"] = True
@@ -503,6 +507,7 @@ async def get_model_form(
     form_class: type[Form] = Form,
     form_overrides: dict[str, type[Field]] | None = None,
     form_converter: type[ModelConverterBase] = ModelConverter,
+    insert: bool | None = None,
 ) -> type[Form]:
     type_name = model.__name__ + "Form"
     converter = form_converter()
@@ -524,7 +529,6 @@ async def get_model_form(
     for name, attr in attributes:
         field_args = form_args.get(name, {})
         field_args["name"] = name
-
         field_widget_args = form_widget_args.get(name, {})
         label = column_labels.get(name, None)
         override = form_overrides.get(name, None)
@@ -537,6 +541,7 @@ async def get_model_form(
             field_widget_args=field_widget_args,
             label=label,
             override=override,
+            insert=insert,
         )
         if field is not None:
             field_dict_key = WTFORMS_ATTRS.get(name, name)

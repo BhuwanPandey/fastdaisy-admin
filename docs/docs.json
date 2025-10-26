@@ -30,6 +30,7 @@
           "configurations/perms", 
           "configurations/pages", 
           "configurations/tem_events", 
+          "configurations/auth", 
           "configurations/custom_view"
         ]
       },

@@ -10,16 +10,16 @@ from fastdaisy_admin.helpers import shorten_name
 
 def login_required(func: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator to check authentication of Admin routes.
-    If no authentication backend is setup, this will do nothing.
+    If no authentication is set, this will do nothing.
     """
 
     @functools.wraps(func)
     async def wrapper_decorator(*args: Any, **kwargs: Any) -> Any:
         view, request = args[0], args[1]
         admin = getattr(view, "_admin_ref", view)
-        auth_backend = getattr(admin, "authentication_backend", None)
-        if auth_backend is not None:
-            response = await auth_backend.authenticate(request)
+        authservice = getattr(admin, "auth_service", None)
+        if authservice is not None and admin.authentication:
+            response = await authservice.authenticate(request)
             if isinstance(response, Response):
                 return response
             if not bool(response):
