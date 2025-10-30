@@ -821,7 +821,7 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
         that are either one-to-one or one-to-many and could be deleted (like in Django).
         """
         mapper = inspect(model)
-        relationships = getattr(mapper,"relationships",[])
+        relationships = getattr(mapper, "relationships", [])
         for rel in relationships:
             # Ignore many-to-many relationships
             if rel.secondary is not None:
