@@ -24,6 +24,9 @@ class BaseUser:
         default=lambda: datetime.now(UTC),
     )
 
+    def __str__(self):
+        return self.username
+
 
 class User(Base, BaseUser):
     __tablename__ = "users"

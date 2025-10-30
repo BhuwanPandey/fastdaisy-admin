@@ -682,6 +682,8 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
         if column == "__str__":
             return str(self.model.__name__).capitalize()
 
+        if column in self._column_labels:
+            return column
         return column.upper() if column == self.pk_columns[0].name else column.capitalize()
 
     def _run_arbitrary_query_sync(self, stmt: ClauseElement) -> Any:
@@ -904,11 +906,11 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
         if self.is_async:
             async with self.session_maker() as session:
                 session.add(obj)
-                return await session.run_sync(lambda: getattr(obj, prop))
+                return await session.run_sync(lambda *arg: getattr(obj, prop))
         else:
             with self.session_maker() as session:
                 session.add(obj)
-                return await anyio.to_thread.run_sync(lambda: getattr(obj, prop))
+                return await anyio.to_thread.run_sync(lambda *arg: getattr(obj, prop))
 
     def has_link(self, column_name) -> bool:
         if column_name in self._has_column_link:
@@ -1074,6 +1076,7 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
 
         if issubclass(self.model, BaseUser):
             pairs["hashed_password"] = "Password"
+
         return pairs
 
     async def delete_model(self, request: Request, pk: str | ModelView) -> None:
