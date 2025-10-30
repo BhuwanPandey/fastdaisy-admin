@@ -51,7 +51,7 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: Type check with MyPy
-        run: uv run mypy .
+        run: uv run mypy
 
   test:
     name: "Python ${{ matrix.python-version }}"
