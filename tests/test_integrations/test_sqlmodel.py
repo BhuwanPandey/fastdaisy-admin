@@ -1,0 +1,53 @@
+from collections.abc import AsyncGenerator
+
+import pytest
+
+try:
+    from sqlmodel import Field, Relationship, SQLModel
+except ImportError:
+    pytest.skip("SQLModel support for SQLAlchemy v2.", allow_module_level=True)
+
+from sqlalchemy.orm import sessionmaker
+
+from fastdaisy_admin.forms import get_model_form
+from tests.common import sync_engine as engine
+
+pytestmark = pytest.mark.anyio
+
+session_maker = sessionmaker(bind=engine)
+
+
+class Team(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    name: str = Field(index=True)
+    headquarters: str
+
+    heroes: list["Hero"] = Relationship(back_populates="team")
+
+
+class Hero(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    name: str = Field(index=True)
+    secret_name: str
+    age: int | None = Field(default=None, index=True)
+
+    team_id: int | None = Field(default=None, foreign_key="team.id")
+    team: Team | None = Relationship(back_populates="heroes")
+
+
+@pytest.fixture(autouse=True)
+def prepare_database() -> AsyncGenerator[None, None, None]:
+    SQLModel.metadata.create_all(engine)
+    yield
+    SQLModel.metadata.drop_all(engine)
+
+
+async def test_model_form_converter() -> None:
+    hero_form = await get_model_form(model=Hero, session_maker=session_maker)
+
+    assert "age" in hero_form()._fields
+    assert "team" in hero_form()._fields
+
+    team_form = await get_model_form(model=Team, session_maker=session_maker)
+
+    assert "headquarters" in team_form()._fields
