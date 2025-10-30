@@ -10,7 +10,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar, no_type_check
 
 import anyio
-from sqlalchemy import DATE, DATETIME, Boolean, Column, Integer, String, Text, asc, cast, desc, func, inspect, or_
+from sqlalchemy import DATE, Boolean, Column, DateTime, Integer, String, Text, asc, cast, desc, func, inspect, or_
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.exc import NoInspectionAvailable
 from sqlalchemy.ext.declarative import DeclarativeMeta
@@ -1036,7 +1036,7 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
                     filters.append(BooleanFilter(column, self.model))
                 elif col_type is SqlEnum:
                     filters.append(EnumFilter(column, self.model))
-                elif col_type is DATE or col_type is DATETIME:
+                elif col_type is DATE or col_type is DateTime:
                     filters.append(DateFieldFilter(column, self.model))
                 elif hasattr(column_obj, "foreign_keys") and column_obj.foreign_keys:
                     # column with foreign_key is unsupported

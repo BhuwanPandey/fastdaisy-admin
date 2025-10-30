@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
-from sqlalchemy import DATE, DATETIME, inspect, or_
+from sqlalchemy import DATE, DateTime, inspect, or_
 from sqlalchemy.sql.expression import Select, select
 from starlette.requests import Request
 
@@ -107,9 +107,9 @@ class EnumFilter:
 
     async def get_filtered_query(self, query: Select, value: Any) -> Select:
         if value == "Unknown":
-            return query.filter(self.field.is_(None))
+            return query.filter(self.field == None)
         elif value:
-            return query.filter(self.field.is_(value))
+            return query.filter(self.field == value)
         return query
 
     def get_query_values(self, request):
@@ -219,7 +219,7 @@ class DateFieldFilter:
         self.lookup_until = f"{self.column}__lt"
         self.lookup_isnull = f"{self.column}__isnull"
         today: date | datetime
-        if isinstance(self.field.type, DATETIME):
+        if isinstance(self.field.type, DateTime):
             today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         elif isinstance(self.field.type, DATE):
             today = datetime.now().date()
