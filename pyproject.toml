@@ -80,7 +80,7 @@ dev = [
 fastdaisy-admin = "fastdaisy_admin.auth.command:app"
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.10", "3.11", "3.12", "3.13"]
+python = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
 [tool.hatch.envs.test]
 dependencies = [
@@ -112,7 +112,7 @@ report = [
 
 [tool.coverage.run]
 parallel = true
-concurrency = ["thread", "greenlet"]
+concurrency = ["thread"]
 source = ["fastdaisy_admin", "tests"]
 
 [tool.coverage.report]
