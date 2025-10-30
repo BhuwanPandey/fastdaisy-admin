@@ -322,7 +322,7 @@ class Admin(BaseAdminView):
         engine: ENGINE_TYPE | None = None,
         session_maker: sessionmaker | async_sessionmaker | None = None,
         authentication: bool = False,
-        auth_model: type[User] = None,
+        auth_model: type[User] | None = None,
         base_url: str = "/admin",
         title: str = "Admin",
         logo_url: str | None = None,
@@ -475,7 +475,7 @@ class Admin(BaseAdminView):
 
         identity = request.path_params["identity"]
         model_view = self._find_model_view(identity)
-        model_view.showed_passxxx = None
+        model_view.showed_passxxx = None # type: ignore[attr-defined]
         request.state._from = "create"
         Form = await model_view.scaffold_form(model_view._form_create_rules, insert=True)
         form_data = await self._handle_form_data(request)
@@ -534,7 +534,7 @@ class Admin(BaseAdminView):
             )
             model.hashed_password = None
         form = Form(obj=model, data=self._normalize_wtform_data(model))
-        model_view.showed_passxxx = pass_xxx
+        model_view.showed_passxxx = pass_xxx # type: ignore[attr-defined]
 
         context = {"model": model, "model_view": model_view, "form": form}
 

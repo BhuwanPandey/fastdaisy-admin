@@ -1,12 +1,14 @@
 from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, DateTime, String
-from sqlalchemy.orm import Mapped, declarative_base, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from fastdaisy_admin.exceptions import FastDaisyAdminException
 
 UTC = UTC
-Base = declarative_base()
+
+
+class Base(DeclarativeBase): ...
 
 
 class BaseUser:

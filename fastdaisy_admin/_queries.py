@@ -223,7 +223,7 @@ class Query:
     async def insert(self, data: dict, request: Request) -> Any:
         model = self.model_view.model
         if isinstance(model, type) and issubclass(model, BaseUser):
-            admin_ref: Admin = self.model_view._admin_ref
+            admin_ref = cast(Admin, self.model_view._admin_ref)
             await admin_ref.auth_service.validate_username(data["username"], self.model_view._mapper)
             if request.state._from == "edit" and data["hashed_password"] == "":
                 data["hashed_password"] = request.state._passxxx
@@ -239,7 +239,7 @@ class Query:
     async def update(self, pk: Any, data: dict, request: Request) -> Any:
         contain_hash = getattr(request.state, "_passxxx", None)
         if contain_hash and "hashed_password" in data:
-            admin_ref: Admin = self.model_view._admin_ref
+            admin_ref = cast(Admin, self.model_view._admin_ref)
             if data["hashed_password"] == "":
                 data["hashed_password"] = request.state._passxxx
             else:
