@@ -85,10 +85,19 @@ python = ["3.10", "3.11", "3.12", "3.13"]
 [tool.hatch.envs.test]
 dependencies = [
     "aiosqlite>=0.21.0",
+    "arrow>=1.4.0",
+    "babel>=2.17.0",
     "beautifulsoup4>=4.13.5",
+    "colour>=0.1.5",
+    "coverage>=7.10.7",
     "fastapi-storages>=0.3.0",
     "httpx>=0.28.1",
-    "pytest>=8.4.2"
+    "mypy>=1.18.1",
+    "phonenumbers>=9.0.17",
+    "pytest>=8.4.2",
+    "ruff>=0.13.0",
+    "sqlalchemy-utils>=0.42.0",
+    "sqlmodel>=0.0.27"
 ]
 
 [tool.hatch.envs.test.scripts]
