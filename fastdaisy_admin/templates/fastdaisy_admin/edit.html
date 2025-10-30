@@ -89,7 +89,7 @@
           {% if model_view.can_delete %}
             <div class="text-end">
               <a href="{{ model_view._build_url_for('admin:delete',request, model) }}"
-                class="btn-sm btn-block btn-error error-content btn rounded-md place-self-end">
+                class="btn-sm btn-block btn-error error-content btn rounded-md place-self-end b-delete">
                 Delete
                 <i class="fa fa-xmark"></i>
               </a>
@@ -138,7 +138,7 @@
 
               {% if model_view.can_delete %}
               <a href="{{ model_view._build_url_for('admin:delete',request, model) }}"
-              class="btn-sm btn-block btn-error error-content btn rounded-md place-self-end">
+              class="btn-sm btn-block btn-error error-content btn rounded-md place-self-end b-delete" >
               Delete
               <i class="fa fa-xmark"></i>
               </a>
