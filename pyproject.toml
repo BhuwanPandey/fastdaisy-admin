@@ -107,7 +107,6 @@ dependencies = [
 [tool.hatch.envs.test.scripts]
 test = "coverage run -m pytest -q --tb=short"
 report = [
-    "coverage combine",
     "coverage report --show-missing",
     "coverage xml"
 ]
