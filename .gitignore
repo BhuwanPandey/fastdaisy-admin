@@ -17,6 +17,5 @@ coverage.xml
 dist/
 node_modules/
 .venv/
-.github
 node_modules/
 
