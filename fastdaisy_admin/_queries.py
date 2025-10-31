@@ -15,6 +15,7 @@ from fastdaisy_admin.auth.models import BaseUser
 from fastdaisy_admin.helpers import (
     get_column_python_type,
     get_direction,
+    get_pk,
     get_primary_keys,
     is_falsy_value,
     object_identifier_values,
@@ -215,10 +216,19 @@ class Query:
             return obj
 
     async def delete(self, obj: Any, request: Request) -> None:
+        model = self.model_view.model
         if self.model_view.is_async:
             await self._delete_async(obj, request)
         else:
             await anyio.to_thread.run_sync(self._delete_sync, obj, request)
+        if isinstance(model, type) and issubclass(model, BaseUser):
+            user_id = request.session.get("_authenticated_id")
+            if user_id:
+                pk = obj
+                if isinstance(obj, model):
+                    pk = get_pk(obj, self.model_view)
+                if str(user_id) == str(pk):
+                    request.session.pop("_authenticated_id", None)
 
     async def insert(self, data: dict, request: Request) -> Any:
         model = self.model_view.model

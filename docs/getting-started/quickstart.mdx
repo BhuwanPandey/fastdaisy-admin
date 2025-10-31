@@ -9,7 +9,8 @@ If you haven't already installed Fastdaisy-Admin, follow the [installation instr
 
 ## Creating a sqlalchemy model
 
-```python {19}
+```python {22}
+import contextlib
 from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.orm import declarative_base
 
@@ -21,54 +22,59 @@ engine = create_engine(
 )
 
 
-class User(Base):
-    __tablename__ = "users"
+class Book(Base):
+    __tablename__ = "books"
 
     id = Column(Integer, primary_key=True)
     name = Column(String)
 
 
-Base.metadata.create_all(engine)  # Create tables
+@contextlib.asynccontextmanager
+async def lifespan(app):
+    Base.metadata.create_all(engine) # create teables 
+    yield
+
 ```
 
 
 ## Fastdaisy-Admin with Starlette
 
 
-```python {2,6,14}
+```python {2,7,14}
 from starlette.applications import Starlette
 from fastdaisy_admin import Admin, ModelView
 
 
-app = Starlette()
+app = Starlette(lifespan=lifespan)
 secret_key = "secret_key"
 admin = Admin(app, secret_key, engine)
 
-class UserAdmin(ModelView):
-    model = User
-    column_list = [User.id, User.name]
+class BookAdmin(ModelView):
+    model = Book
+    column_list = [Book.id, Book.name]
 
 
-admin.add_view(UserAdmin)
+admin.add_view(BookAdmin)
 ```
 
 ## OR: Fastdaisy-Admin with FastAPI
 
-```python {2,6,13}
+```python {2,7,15}
 from fastapi import FastAPI
 from fastdaisy_admin import Admin, ModelView
 
 
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 secret_key = "secret_key"
 admin = Admin(app, secret_key, engine)
 
 
-class UserAdmin(ModelView, model=User):
-    column_list = [User.id, User.name]
+class BookAdmin(ModelView):
+    model = Book
+    column_list = ['id', Book.name]
 
 
-admin.add_view(UserAdmin)
+admin.add_view(BookAdmin)
 ```
 
 and run the server using `fastapi dev` or `uvicorn app:app --reload`, which will serve you at `http://127.0.0.1:8000/admin`.

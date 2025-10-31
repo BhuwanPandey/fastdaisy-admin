@@ -19,12 +19,12 @@ secret_key = "secret_key"
 admin = Admin(app, secret_key, engine)
 
 
-class UserAdmin(ModelView):
-    model = User
-    column_list = [User.id, User.name]
+class BookAdmin(ModelView):
+    model = Book
+    column_list = [Book.id, Book.name]
 
 
-admin.add_view(UserAdmin)
+admin.add_view(BookAdmin)
 ```
 That's it! Your beautiful admin panel is live at `https://app.base.url/admin`
 
