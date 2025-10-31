@@ -74,10 +74,11 @@ def createsuperuser(
         raise InvalidModelError(f"{name} is not a SQLAlchemy model.")
 
     async_run(admindata.initialize_admin_db())
-    user_data = {}
+    user_data: dict[str, str] = {}
     authservice = admindata.auth_service
 
     while not user_data.get("username"):
+        username: str | None
         default_username = get_default_username()
         title = f"Username (leave blank to use '{default_username}'): "
         username = input(title).strip() or default_username

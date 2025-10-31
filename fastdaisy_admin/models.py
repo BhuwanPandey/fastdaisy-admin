@@ -10,7 +10,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar, no_type_check
 
 import anyio
-from sqlalchemy import DATE, DATETIME, Boolean, Column, Integer, String, Text, asc, cast, desc, func, inspect, or_
+from sqlalchemy import DATE, Boolean, Column, DateTime, Integer, String, Text, asc, cast, desc, func, inspect, or_
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.exc import NoInspectionAvailable
 from sqlalchemy.ext.declarative import DeclarativeMeta
@@ -682,6 +682,8 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
         if column == "__str__":
             return str(self.model.__name__).capitalize()
 
+        if column in self._column_labels:
+            return column
         return column.upper() if column == self.pk_columns[0].name else column.capitalize()
 
     def _run_arbitrary_query_sync(self, stmt: ClauseElement) -> Any:
@@ -819,7 +821,8 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
         that are either one-to-one or one-to-many and could be deleted (like in Django).
         """
         mapper = inspect(model)
-        for rel in mapper.relationships:
+        relationships = getattr(mapper, "relationships", [])
+        for rel in relationships:
             # Ignore many-to-many relationships
             if rel.secondary is not None:
                 continue
@@ -904,11 +907,11 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
         if self.is_async:
             async with self.session_maker() as session:
                 session.add(obj)
-                return await session.run_sync(lambda: getattr(obj, prop))
+                return await session.run_sync(lambda *arg: getattr(obj, prop))
         else:
             with self.session_maker() as session:
                 session.add(obj)
-                return await anyio.to_thread.run_sync(lambda: getattr(obj, prop))
+                return await anyio.to_thread.run_sync(lambda *arg: getattr(obj, prop))
 
     def has_link(self, column_name) -> bool:
         if column_name in self._has_column_link:
@@ -1033,7 +1036,7 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
                     filters.append(BooleanFilter(column, self.model))
                 elif col_type is SqlEnum:
                     filters.append(EnumFilter(column, self.model))
-                elif col_type is DATE or col_type is DATETIME:
+                elif col_type is DATE or col_type is DateTime:
                     filters.append(DateFieldFilter(column, self.model))
                 elif hasattr(column_obj, "foreign_keys") and column_obj.foreign_keys:
                     # column with foreign_key is unsupported
@@ -1074,6 +1077,7 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
 
         if issubclass(self.model, BaseUser):
             pairs["hashed_password"] = "Password"
+
         return pairs
 
     async def delete_model(self, request: Request, pk: str | ModelView) -> None:

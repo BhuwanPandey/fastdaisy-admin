@@ -37,7 +37,7 @@
         <li>
           
           <a href="{{ view.url(request) }}" class="{% if view.is_active(request) %}menu-active{% endif %}">
-            <i class="{{ view.icon }}"></i>
+            {% if view.icon %}<i class="{{ view.icon }}"></i> {% endif %}
           {{view.display_name}}
           </a>
         </li>
@@ -47,14 +47,14 @@
     <li class="mb-2">
       <details {% if view.is_active(request) %}open{% endif %}>
         <summary class="capitalize">
-          <i class="{{ view.icon }}"></i>
+          {% if view.icon %}<i class="{{ view.icon }}"></i> {% endif %}
           {{view.display_name}}
         </summary>
         <ul>
         {% for child in view.children %}
             <li>
               <a href="{{ child.url(request) }}" class="{% if child.is_active(request) %}menu-active{% endif %}">
-                <i class="{{ child.icon }}"></i>
+                {% if child.icon %}<i class="{{ child.icon }}"></i> {% endif %}
                   {{ child.display_name }}
               </a>
             </li>

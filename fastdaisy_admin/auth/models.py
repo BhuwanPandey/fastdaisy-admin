@@ -1,12 +1,20 @@
-from datetime import UTC, datetime
+import sys
+from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, String
-from sqlalchemy.orm import Mapped, declarative_base, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from fastdaisy_admin.exceptions import FastDaisyAdminException
 
-UTC = UTC
-Base = declarative_base()
+if sys.version_info < (3, 11):  # pragma: no cover  # noqa: UP036
+    from datetime import timezone
+
+    UTC = timezone.utc  # noqa: UP017
+else:
+    from datetime import UTC
+
+
+class Base(DeclarativeBase): ...
 
 
 class BaseUser:
@@ -23,6 +31,9 @@ class BaseUser:
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
     )
+
+    def __str__(self):
+        return self.username
 
 
 class User(Base, BaseUser):

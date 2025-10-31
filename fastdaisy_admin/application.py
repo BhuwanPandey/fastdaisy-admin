@@ -40,6 +40,7 @@ from fastdaisy_admin.helpers import (
     get_pk,
     is_async_session_maker,
 )
+from fastdaisy_admin.middleware import AuthStoreMiddleware
 from fastdaisy_admin.models import BaseView, ModelView
 from fastdaisy_admin.templating import Jinja2Templates
 
@@ -95,6 +96,7 @@ class BaseAdmin:
         self.authentication = authentication
         middlewares = list(middlewares) if middlewares is not None else []
         middlewares.insert(0, Middleware(SessionMiddleware, secret_key=secret_key))
+        middlewares.append(Middleware(AuthStoreMiddleware, authentication))
 
         self.admin = Starlette(middleware=middlewares)
         self.templates = self.init_templating_engine()
@@ -319,13 +321,13 @@ class Admin(BaseAdminView):
         secret_key: str,
         engine: ENGINE_TYPE | None = None,
         session_maker: sessionmaker | async_sessionmaker | None = None,
-        auth_model: type[User] = None,
+        authentication: bool = False,
+        auth_model: type[User] | None = None,
         base_url: str = "/admin",
         title: str = "Admin",
         logo_url: str | None = None,
         favicon_url: str | None = None,
         middlewares: Sequence[Middleware] | None = None,
-        authentication: bool = False,
         debug: bool = False,
         templates_dir: str = "templates",
     ) -> None:
@@ -358,15 +360,15 @@ class Admin(BaseAdminView):
 
         async def http_exception(request: Request, exc: Exception) -> Response | Awaitable[Response]:
             assert isinstance(exc, HTTPException)
-            if exc.status_code in [404]:
-                context = {
-                    "status_code": exc.status_code,
-                    "message": exc.detail,
-                }
-                return await self.templates.TemplateResponse(
-                    request, "fastdaisy_admin/error.html", context, status_code=exc.status_code
-                )
-            return RedirectResponse(url=request.url_for("admin:login"), status_code=302)
+            context = {
+                "status_code": exc.status_code,
+                "message": exc.detail,
+            }
+            if request.state.authentication and exc.status_code not in [404, 500]:
+                return RedirectResponse(url=request.url_for("admin:login"), status_code=302)
+            return await self.templates.TemplateResponse(
+                request, "fastdaisy_admin/error.html", context, status_code=exc.status_code
+            )
 
         routes = [
             Mount("/statics", app=statics, name="statics"),
@@ -473,7 +475,7 @@ class Admin(BaseAdminView):
 
         identity = request.path_params["identity"]
         model_view = self._find_model_view(identity)
-        model_view.showed_passxxx = None
+        model_view.showed_passxxx = None  # type: ignore[attr-defined]
         request.state._from = "create"
         Form = await model_view.scaffold_form(model_view._form_create_rules, insert=True)
         form_data = await self._handle_form_data(request)
@@ -532,7 +534,7 @@ class Admin(BaseAdminView):
             )
             model.hashed_password = None
         form = Form(obj=model, data=self._normalize_wtform_data(model))
-        model_view.showed_passxxx = pass_xxx
+        model_view.showed_passxxx = pass_xxx  # type: ignore[attr-defined]
 
         context = {"model": model, "model_view": model_view, "form": form}
 
@@ -569,8 +571,6 @@ class Admin(BaseAdminView):
     async def delete(self, request: Request) -> Response:
         """Delete route."""
 
-        await self._delete(request)
-
         identity = request.path_params["identity"]
         model_view = self._find_model_view(identity)
         pk = request.path_params["pk"]
@@ -578,6 +578,7 @@ class Admin(BaseAdminView):
             url = URL(str(request.url_for("admin:list", identity=identity)))
             return RedirectResponse(url=url, status_code=302)
 
+        await self._delete(request)
         model = await model_view.get_object_for_delete(pk)
         if not model:
             raise HTTPException(status_code=404)
@@ -611,10 +612,6 @@ class Admin(BaseAdminView):
         return await model_view.export_data(rows, export_type=export_type)
 
     async def login(self, request: Request) -> Response:
-        user_identity = next(
-            (view.identity for view in self._views if isinstance(view, ModelView) and view.model == self.auth_model),
-            None,
-        )
         if await self.auth_service.authenticate(request):
             return RedirectResponse(request.url_for("admin:index"), status_code=302)
 

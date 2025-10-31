@@ -4,7 +4,7 @@ from collections.abc import Generator
 import pytest
 from jinja2 import TemplateNotFound
 from markupsafe import Markup
-from sqlalchemy import DATETIME, Boolean, Column, Enum, ForeignKey, Integer, String, select
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, select
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import (
     contains_eager,
@@ -80,7 +80,7 @@ class Address(Base):
     is_located = Column(Boolean)
     user_id = Column(Integer, ForeignKey("users.id"))
     user = relationship("User", back_populates="addresses")
-    created_at = Column(DATETIME)
+    created_at = Column(DateTime)
 
 
 class Profile(Base):

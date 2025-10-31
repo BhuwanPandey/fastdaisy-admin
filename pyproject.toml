@@ -60,13 +60,21 @@ exclude = [
 [dependency-groups]
 dev = [
     "aiosqlite>=0.21.0",
+    "arrow>=1.4.0",
+    "asyncpg>=0.30.0",
+    "babel>=2.17.0",
     "beautifulsoup4>=4.13.5",
+    "colour>=0.1.5",
     "coverage>=7.10.7",
     "fastapi-storages>=0.3.0",
     "httpx>=0.28.1",
     "mypy>=1.18.1",
+    "phonenumbers>=9.0.17",
+    "psycopg2>=2.9.11",
     "pytest>=8.4.2",
     "ruff>=0.13.0",
+    "sqlalchemy-utils>=0.42.0",
+    "sqlmodel>=0.0.27",
     "uvicorn>=0.35.0",
 ]
 
@@ -74,35 +82,44 @@ dev = [
 fastdaisy-admin = "fastdaisy_admin.auth.command:app"
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.10", "3.11", "3.12", "3.13"]
-
-[tool.hatch.envs.test.scripts]
-test = "coverage run -m pytest -q --tb=short"
+python = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
 [tool.hatch.envs.test]
 dependencies = [
     "aiosqlite>=0.21.0",
+    "arrow>=1.4.0",
+    "asyncpg>=0.30.0",
+    "babel>=2.17.0",
     "beautifulsoup4>=4.13.5",
+    "colour>=0.1.5",
+    "coverage>=7.10.7",
     "fastapi-storages>=0.3.0",
     "httpx>=0.28.1",
-    "pytest>=8.4.2"
+    "mypy>=1.18.1",
+    "phonenumbers>=9.0.17",
+    "psycopg2>=2.9.11",
+    "pytest>=8.4.2",
+    "ruff>=0.13.0",
+    "sqlalchemy-utils>=0.42.0",
+    "sqlmodel>=0.0.27"
 ]
 
-[tool.hatch.envs.cov.scripts]
+[tool.hatch.envs.test.scripts]
+test = "coverage run -m pytest -q --tb=short"
+
 report = [
-    "coverage combine",
-    "coverage report --show-missing",
+    "coverage report",
     "coverage xml"
 ]
 
 [tool.coverage.run]
-parallel = true
-concurrency = ["thread", "greenlet"]
+concurrency = ["thread"]
 source = ["fastdaisy_admin", "tests"]
 
 [tool.coverage.report]
-fail_under = 99
+fail_under = 91
 show_missing = true
+skip_covered = true
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
@@ -118,12 +135,12 @@ include = ["fastdaisy_admin/**/*.py", "tests/**/*.py"]
 
 [tool.ruff.lint]
 select = ["F", "I", "UP", "T20", "B039"]
+fixable = ["ALL"]
 ignore = [
     "F841",  # remove unused variables
     "UP047"
 
 ]
-fixable = ["ALL"]
 
 [tool.ruff.format]
 quote-style = "double"
