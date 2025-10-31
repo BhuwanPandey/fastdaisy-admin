@@ -12,5 +12,5 @@ class AuthStoreMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         request.state.authentication = self.authentication
         if not self.authentication:
-            request.session.clear()
+            request.session.pop("_authenticated_id", None)
         return await call_next(request)
