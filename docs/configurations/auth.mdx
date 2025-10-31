@@ -13,8 +13,25 @@ fastdaisy-admin createsuperuser
 
 ```
 
-And also, you can provide file path which contain `Admin` instance as 
+And also, you can provide file path which must contain `Admin` instance as 
+```python
+# app.py
 
+from fastdaisy_admin.application import Admin
+....
+
+admin = Admin(
+    app, 
+    secret_key, 
+    engine,
+    authentication=True,
+    auth_model=User
+)
+....
+
+```
+
+`filepath:` user/app.py
 ``` bash
 
 fastdaisy-admin createsuperuser user/app.py
@@ -36,27 +53,22 @@ The default `User` table contains the following fields:
 If you need a customized User model, you can override it as shown below:
 
 
-``` python {5,22-24,41-42}
+``` python {6,17-19,45-46}
 
 import contextlib
-from sqlalchemy import Column, Boolean, Integer, String, Text, create_engine
+from sqlalchemy import Column, Integer, String, Text, create_engine, ForeignKey
 from sqlalchemy.orm import declarative_base,relationship,sessionmaker
+from starlette.applications import Starlette
 from fastdaisy_admin.auth.models import BaseUser
+from fastdaisy_admin.application import ModelView,Admin
 
+secret_key="secret_key"
 Base = declarative_base()
 engine = create_engine(
     "sqlite:///example.db",
     connect_args={"check_same_thread": False},
 )
 Session = sessionmaker(bind=engine)
-
-@contextlib.asynccontextmanager
-async def lifespan(app):
-    Base.metadata.create_all(engine)
-    yield
-
-
-app = Starlette(lifespan=lifespan)
 
 class User(Base, BaseUser):
     __tablename__ = "users"
@@ -71,6 +83,15 @@ class Book(Base):
     description = Column(Text)
     author_id = Column(Integer, ForeignKey('users.id'))
     author = relationship("User", back_populates="books")
+
+
+@contextlib.asynccontextmanager
+async def lifespan(app):
+    Base.metadata.create_all(engine)
+    yield
+
+
+app = Starlette(lifespan=lifespan)
 
 
 admin = Admin(
@@ -105,8 +126,7 @@ When executed:
 To access the admin interface, log in using valid credentials on the login page.
 Authentication is managed internally using session cookies, which remain valid for two weeks.
 
-To log out, click the Logout button located in the navigation bar. This will clear the session data from your cookies.
-You will also see an Edit Profile button in the navigation bar when you register a user admin as shown below:
+You will see an Edit Profile button in the navigation bar only when you register a user admin as shown below:
 
 ``` python
 
@@ -119,3 +139,4 @@ admin.add_view(UserAdmin)
 
 ```
 
+To `logout`, click the Logout button located in the navigation bar. This will clear the session data from your cookies.

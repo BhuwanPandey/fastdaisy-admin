@@ -6,12 +6,13 @@ icon: note
 The goal of this project is to bring a `Django Admin` like experience to FastAPI applications. It still under 
 active development, some features may be missing or behave differently compared to `Django Admin`.
 
-At its core, this project is built on top of `sqladmin`, meaning most features available in `sqladmin` are also supported here.
+At its core, this project built on the top of base code of `sqladmin`, meaning some features available in `sqladmin` are also supported here.
 
 ### `fastdaisy_admin` vs `sqladmin`
 - `fastdaisy_admin` is inspired by the look and feel of `Django Admin`.
 - The `detail page` section has been removed.
 - `Secret key` is required during the setup.
+- Authentication mechanism can be toggle with `authentication=True` on Admin class.
 - Improvement
     - Simplified creation of custom actions
     - Filters can be applied without explicitly defining filter classes
