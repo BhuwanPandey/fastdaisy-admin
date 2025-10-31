@@ -106,19 +106,20 @@ dependencies = [
 
 [tool.hatch.envs.test.scripts]
 test = "coverage run -m pytest -q --tb=short"
+
 report = [
-    "coverage report --show-missing",
+    "coverage report",
     "coverage xml"
 ]
 
 [tool.coverage.run]
-parallel = true
 concurrency = ["thread"]
 source = ["fastdaisy_admin", "tests"]
 
 [tool.coverage.report]
 fail_under = 91
 show_missing = true
+skip_covered = true
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
