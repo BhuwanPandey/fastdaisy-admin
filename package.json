@@ -1,0 +1,15 @@
+{
+  "name": "fastdaisy_admin",
+  "scripts": {
+    "build:base": "npx @tailwindcss/cli -i fastdaisy_admin/statics/build/tailwind.css -o fastdaisy_admin/statics/css/styles.css --minify --watch",
+    "watch": "npm run build:base",
+    "doc": "cd docs && mint dev"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "4.1.11",
+    "daisyui": "5.0.54",
+    "mint": "^4.2.108",
+    "tailwindcss": "4.1.11"
+  }
+}
+
