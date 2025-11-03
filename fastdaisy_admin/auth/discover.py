@@ -31,7 +31,7 @@ def get_default_path() -> Path:
     raise FastDaisyAdminException("Could not find a default file to run, please provide an explicit path")
 
 
-def get_module_data_from_path(path: Path) -> str:
+def get_module_data_from_path(path: Path) -> tuple[str, Path]:
     use_path = path.resolve()
     module_path = use_path
     if use_path.is_file() and use_path.stem == "__init__":
@@ -47,7 +47,7 @@ def get_module_data_from_path(path: Path) -> str:
             break
 
     module_str = ".".join(p.stem for p in module_paths)
-    return module_str, extra_sys_path
+    return (module_str, extra_sys_path)
 
 
 def get_admin(mod_data: str) -> Admin:
