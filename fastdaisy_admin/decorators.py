@@ -23,6 +23,7 @@ def login_required(func: Callable[..., Any]) -> Callable[..., Any]:
             if isinstance(response, Response):
                 return response
             if not bool(response):
+                request.session.clear()
                 return RedirectResponse(request.url_for("admin:login"), status_code=302)
 
         if inspect.iscoroutinefunction(func):

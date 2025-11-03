@@ -13,9 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make design looks just like `django-admin`
 - Improved `expose`,`action` decorators suchthat it can be directly passed on list
 - Improved `filters`,`search` section and added column_display_link
-- Show alert message on data insert, edit and delete
+- Show alert message on data insert, edit
 - Update the test suites accordingly
 - Added authentication mechanism based on session
 - Optional login and logout feature
 - Added cli to create superuser
 
+## [0.0.81] - 2025-11-03
+- Fix `app module not found` on running `fastdaisy-admin createsuperuser`
+- Show alert message on data delete

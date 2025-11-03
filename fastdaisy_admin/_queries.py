@@ -13,6 +13,7 @@ from starlette.requests import Request
 from fastdaisy_admin._types import MODEL_PROPERTY
 from fastdaisy_admin.auth.models import BaseUser
 from fastdaisy_admin.helpers import (
+    add_message,
     get_column_python_type,
     get_direction,
     get_pk,
@@ -121,6 +122,10 @@ class Query:
             anyio.from_thread.run(self.model_view.on_model_delete, obj, request)
             session.delete(obj)
             session.commit()
+            from_action = getattr(request.state, "_trigger", None)
+            if not from_action and not from_action == "action":
+                msg = f'The {self.model_view.model.__name__} "{obj}" was deleted successfully.'
+                add_message(request, msg, "error")
             anyio.from_thread.run(self.model_view.after_model_delete, obj, request)
 
     def _insert_sync(self, data: dict[str, Any], request: Request) -> Any:
@@ -186,6 +191,10 @@ class Query:
             await self.model_view.on_model_delete(obj, request)
             await session.delete(obj)
             await session.commit()
+            from_action = getattr(request.state, "_trigger", None)
+            if not from_action and not from_action == "action":
+                msg = f'The {self.model_view.model.__name__} "{obj}" was deleted successfully.'
+                add_message(request, msg, "error")
             await self.model_view.after_model_delete(obj, request)
 
     async def _insert_async(self, data: dict[str, Any], request: Request) -> Any:
@@ -215,8 +224,11 @@ class Query:
             await self.model_view.after_model_change(data, obj, False, request)
             return obj
 
-    async def delete(self, obj: Any, request: Request) -> None:
+    async def delete(self, obj: Any, request: Request, trigger=None) -> None:
         model = self.model_view.model
+        if trigger:
+            request.state._trigger = trigger
+
         if self.model_view.is_async:
             await self._delete_async(obj, request)
         else:
