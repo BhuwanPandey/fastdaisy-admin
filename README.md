@@ -132,7 +132,7 @@ class BookAdmin(ModelView):
     column_list = ['id', Book.title]
 
 
-admin.add_view(UserAdmin)
+admin.add_view(BookAdmin)
 ```
 
 Now visiting `/admin` on your browser you can see the `Admin` dashboard.
