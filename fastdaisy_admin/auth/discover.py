@@ -3,6 +3,7 @@ These discovers are from fastapi-cli project.
 """
 
 import importlib
+import sys
 from logging import getLogger
 from pathlib import Path
 
@@ -14,11 +15,11 @@ logger = getLogger(__name__)
 
 def get_default_path() -> Path:
     potential_paths = (
-        "main.py",
         "app.py",
+        "main.py",
         "api.py",
-        "app/main.py",
         "app/app.py",
+        "app/main.py",
         "app/api.py",
     )
 
@@ -36,15 +37,17 @@ def get_module_data_from_path(path: Path) -> str:
     if use_path.is_file() and use_path.stem == "__init__":
         module_path = use_path.parent
     module_paths = [module_path]
+    extra_sys_path = module_path.parent
     for parent in module_path.parents:
         init_path = parent / "__init__.py"
         if init_path.is_file():
             module_paths.insert(0, parent)
+            extra_sys_path = parent.parent
         else:
             break
 
     module_str = ".".join(p.stem for p in module_paths)
-    return module_str
+    return module_str, extra_sys_path
 
 
 def get_admin(mod_data: str) -> Admin:
@@ -78,6 +81,7 @@ def get_admin_data(path: Path | None) -> Admin:
     if not path.exists():
         raise FastDaisyAdminException(f"Path does not exist {path}")
 
-    mod_data = get_module_data_from_path(path)
+    mod_data, extra_sys_path = get_module_data_from_path(path)
+    sys.path.insert(0, str(extra_sys_path))
     admin_obj = get_admin(mod_data=mod_data)
     return admin_obj
