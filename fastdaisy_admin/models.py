@@ -1080,8 +1080,8 @@ class ModelView(BaseView, metaclass=ModelViewMeta):
 
         return pairs
 
-    async def delete_model(self, request: Request, pk: str | ModelView) -> None:
-        await Query(self).delete(pk, request)
+    async def delete_model(self, request: Request, pk: str | ModelView, trigger=None) -> None:
+        await Query(self).delete(pk, request, trigger)
 
     async def insert_model(self, request: Request, data: dict) -> Any:
         return await Query(self).insert(data, request)
