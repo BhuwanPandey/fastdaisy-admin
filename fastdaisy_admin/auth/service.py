@@ -58,9 +58,9 @@ class UserService:
             raise
 
     async def authenticate_user(
-        self,
-        username: str,
-        password: str,
+            self,
+            username: str,
+            password: str,
     ) -> Any:
         """
         Authenticate a user by username.
@@ -115,7 +115,7 @@ class UserService:
         stmt = select(self.model).where(self.model.username == username)
         if self.is_async:
             async with self.session() as db:
-                obj = db.execute(stmt).scalar_one_or_none()
+                obj = (await db.execute(stmt)).scalar_one_or_none()
         else:
             with self.session() as db:
                 obj = db.execute(stmt).scalar_one_or_none()
